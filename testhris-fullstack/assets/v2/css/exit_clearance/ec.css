@@ -1,0 +1,250 @@
+.ec-layout {
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background-color: #ffffff;
+}
+
+.ec-sub-navbar {
+    width: 100%;
+
+    background: #fff;
+
+    border: none !important;
+
+    position: relative;
+
+    z-index: 10;
+}
+
+.sub-content {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.ec-step-navbar{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: #ffffff;
+}
+
+.ec-user-resign{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    gap: 1rem;
+    padding: 1rem 2rem;
+}
+
+.resignation-timeline {
+    --timeline-completed: #38761d;
+    --timeline-current: #6aa84f;
+    --timeline-pending: #b6d7a8;
+
+    position: relative;
+
+    width: 100%;
+
+    height: 13rem;
+
+    padding: 15px 1rem;
+
+    display: flex;
+}
+
+.resignation-timeline .timeline-line {
+    position: absolute;
+    left: 40px;
+    right: 40px;
+    top: 50%;
+    height: 4px;
+    width: auto;
+    transform: translateY(-50%);
+    background: var(--timeline-pending);
+    border: 0;
+    border-radius: 10px;
+    z-index: 1;
+}
+.resignation-timeline::before {
+
+    content: "";
+
+    position: absolute;
+
+    left: 40px;
+    right: 40px;
+
+    top: 50%;
+
+    height: 4px;
+
+    transform: translateY(-50%);
+
+    background: var(--timeline-pending);
+
+    border-radius: 10px;
+
+    z-index: 1;
+}
+.timeline-line-progress {
+
+    position: absolute;
+
+    left: 40px;
+
+    top: 50%;
+
+    height: 4px;
+
+    transform: translateY(-50%);
+
+    background: var(--timeline-completed);
+
+    border-radius: 10px;
+
+    z-index: 2;
+
+    transition: width .3s ease;
+}
+.timeline-item {
+    position: relative;
+
+    flex: 1;
+
+    height: 100%;
+
+    min-width: 0;
+
+    border: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+
+    z-index: 3;
+}
+.resignation-timeline .timeline-item::before,
+.resignation-timeline .timeline-item::after {
+    content: none !important;
+    display: none !important;
+    border: 0 !important;
+}
+.timeline-icon {
+
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    width: 60px;
+    height: 60px;
+
+    transform: translate(-50%, -50%);
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: var(--timeline-pending);
+
+    color: #fff;
+
+    font-size: 12px;
+
+    z-index: 5;
+
+    transition: .3s ease;
+}
+.timeline-icon svg {
+    width: 32px;
+    height: 32px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.timeline-item.completed .timeline-icon {
+    background: var(--timeline-completed);
+}
+.timeline-item.current .timeline-icon {
+
+    background: var(--timeline-current);
+
+    transform:
+        translate(-50%, -50%)
+        scale(1.08);
+
+    box-shadow:
+        0 0 0 4px rgba(106, 168, 79, .18);
+}
+.timeline-item.current .timeline-step {
+    color: var(--timeline-current);
+}
+.timeline-content {
+
+    position: absolute;
+
+    left: 50%;
+
+    width: 140px;
+
+    transform: translateX(-50%);
+
+    text-align: center;
+}
+
+.timeline-item.top .timeline-content {
+    bottom: calc(50% + 25px);
+}
+
+.timeline-item.bottom .timeline-content {
+    top: calc(50% + 45px);
+}
+.timeline-step {
+
+    margin-bottom: 3px;
+
+    font-size: 0.85rem !important;
+
+    line-height: 1.2;
+
+    font-weight: 700;
+
+    font-style: italic;
+
+    color: var(--timeline-pending);
+}
+
+.timeline-title {
+
+    font-size: 14px;
+
+    line-height: 1.25;
+
+    font-weight: 500;
+
+    color: var(--timeline-pending);
+}
+
+.timeline-item.completed .timeline-step {
+    color: var(--timeline-completed);
+}
+
+.timeline-item.completed .timeline-title {
+    color: #151a20;
+}
+.disabled {
+    pointer-events: none;
+    cursor: not-allowed;
+}

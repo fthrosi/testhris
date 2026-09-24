@@ -1,0 +1,35 @@
+#Abaikan File dibawah
+.env
+Apache.html
+info.php
+phpinfo.php
+test_api.php
+test_connection.php
+
+#Abaikan Folder Besertea Isinya
+myadmin/
+myadmin/*
+bgjob_backup/
+bgjob_backup/*
+tmp/
+tmp/*
+
+assets/documents/documents_hris/
+assets/documents/documents_hris/*
+assets/documents/documents_tm/
+assets/documents/documents_tm/*
+assets/documents/documents_pa/
+assets/documents/documents_pa/*
+assets/images/qrcode_mdcr/
+assets/images/qrcode_mdcr/*
+assets/images/qrcode_tm/
+assets/images/qrcode_tm/*
+assets/images/qrcode_hris/
+assets/images/qrcode_hris/*
+assets/images/qrcode_tm_schedule/
+assets/images/qrcode_tm_schedule/*
+reports/payslip/
+reports/payslip/*
+papp_documents/
+papp_documents/*
+application/logs/*

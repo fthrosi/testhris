@@ -1,0 +1,33 @@
+services:
+
+  # =====================================================
+  # HRIS APPLICATION
+  # =====================================================
+  testhris_app:
+    build:
+      context: ./testhris-fullstack
+    container_name: testhris_app
+    restart: always
+
+    volumes:
+      - ./testhris-fullstack:/var/www/html
+
+    # environment:
+    #   DB_HOST: mysql-hris
+    #   DB_PORT: 3306
+    #   DB_DATABASE: IBS_HRIS_DB
+    #   DB_USER: hris_user
+    #   DB_PASSWORD: hris_pass123
+
+#    depends_on:
+#      - db-hris
+
+    networks:
+      - app-network
+
+# =====================================================
+# NETWORK
+# =====================================================
+networks:
+  app-network:
+    external: true

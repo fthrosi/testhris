@@ -1,0 +1,180 @@
+.wrap-submit-rl {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 2.5rem;
+    padding-top:0rem;
+    gap: 3rem;
+    padding-bottom: 4rem;
+    /* background-color: #f25757; */
+}
+.title-resign {
+    margin: 0;
+}
+.title-resign-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.user-resign-content{
+    width: 100%;
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 2rem;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0px 0px 10px rgba(246, 229, 141, 1);
+}
+.initial-resign-user{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 5rem;
+    height: 5rem;
+    min-width: 5rem;
+    min-height: 5rem;
+    flex: 0 0 5rem;
+    background-color: #f9ca24;
+    color: #fff;
+    font-weight: 600;
+    font-size: 1.5rem;
+    border-radius: 50%;
+}
+.user-resign-details{
+    width: 100%;
+    display:flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.user-resign-name{
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+.user-resign-information{
+    width: 100%;
+    display: flex;
+    gap: 1.5rem;
+}
+.wrap-information{
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.wrap-description{
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+.label-description{
+    font-weight: 400;
+    font-size: 0.75rem;
+    margin: 0;
+    color: #7f8c8d;
+}
+.icon-description{
+    font-size: 1.5rem;
+    color: #7f8c8d;
+}
+.value-description{
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+.title-section-resign{
+    margin-top: 1rem;
+    display:flex;
+    align-items: center;
+    gap:1rem;
+    border-bottom: 2px solid #6aa84f;
+}
+.number-step-resign{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 2.5rem;
+    min-width: 4rem;
+    min-height: 2.5rem;
+    flex: 0 0 auto;
+    background-color: #6aa84f;
+    color: #fff;
+    font-weight: 600;
+    font-size: 1.5rem;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+.title-step-resign{
+    font-weight: 500;
+    font-size: 1.5rem;
+    color: #000000;
+}
+.content-submit-rl{
+    display: flex;
+    padding: 2rem 0;
+    height: fit-content;
+}
+.form-submit-rl{
+    display: flex;
+    width:70%;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+}
+.generated-rl{
+    width:30%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+}
+.form-group-resign{
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.date-field {
+    width: 18rem;
+}
+.notes-field {
+    width: 100%;
+}
+
+.date-field-label, .notes-field-label {
+    padding: 8px 0px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: start;
+}
+
+.date-field-input{
+    height: 50px;
+    border: 1px solid #222;
+    border-radius: 0.5rem;
+    text-align: start;
+    font-size: 0.75rem;
+    padding: 0.6rem;
+}
+.notes-field-input{
+    height: 8rem;
+    border: 1px solid #222;
+    border-radius: 0.5rem;
+    text-align: start;
+    font-size: 0.75rem;
+    padding: 0.6rem;
+}
+.last-date{
+    background-color: #ececec !important;
+}
+.last-date:focus{
+    border-color: #222;
+    box-shadow: none !important;
+}
+.button-submit-rl{
+    display: flex;
+    gap:0.5rem;
+}
+
+/* #f9ca24
+#vvf6e58d */

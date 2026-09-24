@@ -1,0 +1,17 @@
+<?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+
+ERROR - 2026-04-29 05:45:49 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 06:45:50 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 07:45:51 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 08:45:51 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 09:20:25 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 09:45:52 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 10:45:53 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 11:45:54 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 12:45:55 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 13:45:56 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 14:45:57 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 15:45:58 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 16:33:14 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 16:36:47 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)
+ERROR - 2026-04-29 16:45:58 --> Query error: Column 'nik' cannot be null - Invalid query: INSERT INTO `tokens_api_absen` (`token`, `nik`) VALUES ('jB8vo8Ii0ii0Xo2ai0lt7mv4', NULL)

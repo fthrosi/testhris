@@ -1,0 +1,96 @@
+<html><head>
+    <meta charset="utf-8">
+    <title>User Account</title>
+</head>
+
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4">
+    <tbody><tr>
+        <td align="center" style="padding:30px 15px;">
+
+            <table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="border-radius:8px;overflow:hidden;">
+
+                <!-- Header -->
+                <tbody><tr>
+                    <td style="background-color:#741b47;padding:20px;">
+                        <h2 style="margin:0;color:#ffffff;font-size:18px;">
+                            [HRIS] USER ACCOUNT
+                        </h2>
+                    </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                    <td style="padding:30px;color:#333333;font-size:14px;line-height:1.7;">
+
+                        
+
+                        <p></p>
+
+                        <p>
+                            Dear Mr/Mrs
+                            <strong><?php echo $data_user[0]->full_name; ?></strong>.
+						</p>
+						<br>
+                        <p>
+							Please find below your login credentials to access the <strong>HRIS (Human Resources Information System)</strong>:
+
+                        </p>                      
+
+                        <table width="100%" cellpadding="6" cellspacing="0" border="0" style="font-size:14px;">
+                            <tbody><tr>
+                                <td width="180"><strong>User Login</strong></td>
+                                <td>: <?php echo $data_user[0]->user_email; ?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Passcode</strong></td>
+                                <td>: <?php echo decrypt($data_user[0]->password); ?></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Link Access</strong></td>
+                                <td>: hris.ibsmulti.com</td>
+                            </tr></tbody></table>
+							<br>
+
+                        
+
+						
+
+									
+						<p>
+                            For any questions or system issues, please contact HR team.
+                                                                                                                                             <p></p><p>
+
+                                                                                                                                             <p></p></p></p>
+
+                        
+                        <p>
+						<br>
+						<br>
+                            Thanks and Regards,<br>
+							<br>
+							<br>
+                            <strong>HRIS - Human Resources Information System</strong>
+                        </p>
+
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="background:#f0f0f0;padding:12px;text-align:center;font-size:12px;color:#777;">
+                        *** This is an auto-generated email from HRIS. Please do not reply. ***
+                        <br><br>
+                        Copyright &copy; <?=date("Y")?> PT. Infrastruktur Bisnis Sejahtera. All rights reserved.
+                    </td>
+                </tr>
+
+            </tbody></table>
+
+        </td>
+    </tr>
+</tbody></table>
+
+
+</body></html>

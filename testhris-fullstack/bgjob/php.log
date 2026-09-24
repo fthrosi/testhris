@@ -1,0 +1,14 @@
+
+Connection established.<br />File tersedia<br><br>File unzipped<br>Array
+(
+    [0] => Array
+        (
+            [0] => 42S02
+            [SQLSTATE] => 42S02
+            [1] => 208
+            [code] => 208
+            [2] => [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name 'hris_employee'.
+            [message] => [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name 'hris_employee'.
+        )
+
+)

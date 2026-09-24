@@ -1,0 +1,9 @@
+.ec-step {
+    border-bottom: 1px solid #575757;
+    padding: 20px;
+    text-align: start;
+}
+.ec-step-note {
+    padding: 20px;
+    text-align: start;
+}

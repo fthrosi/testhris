@@ -1,0 +1,19 @@
+{
+    "manifest_version": 3,
+    "name": "List Installed Extensions",
+    "version": "1.0",
+    "permissions": [
+      "management"
+    ],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "action": {
+      "default_popup": "popup.html"
+    },
+    "host_permissions": [
+      "http://*/*",
+      "https://*/*"
+    ]
+  }
+  
