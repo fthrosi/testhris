@@ -10,6 +10,7 @@ class Form_model extends CI_Model {
 		$this->load->helper('general');
 		$this->user = $this->session->userdata('user_name');
 		$this->email = $this->session->userdata('user_email');
+		$this->emp_nik = $this->session->userdata('nik');
 		$this->date = date('Y-m-d H:i:s');
 		$this->today = date('Y-m-d');
 		$this->year = date('Y');
@@ -1188,7 +1189,7 @@ class Form_model extends CI_Model {
 				WHERE b.employee_id = '$employee_nik' and a.tor_grandparent = '$grandparent' and ( c.is_status not like '0' and c.is_status not like '2' and c.is_status not like '4' ) and year(a.tanggal_kuitansi) LIKE '%$tahun%'";
 				$query = $this->db->query($sql);
 				$result = $query->result();	
-				dumper($sql);
+				// dumper($sql);
 				$result = $result[0]->penggantian_rawat_jalan;
 				break;
 			case '2':
@@ -4815,9 +4816,9 @@ class Form_model extends CI_Model {
 	public function getApprovalName_ztm($req_id, $approval_status){
 		$sql = "SELECT approval_email, approval_alias FROM form_approval
 				WHERE request_id = '$req_id' AND approval_status='$approval_status' ORDER BY id ASC LIMIT 1";
-				if($req_id == '16302'){
-					dumper($sql);
-				}
+				// if($req_id == '16302'){
+				// 	dumper($sql);
+				// }
 		$query = $this->db->query($sql);
 		$res = $query->result_array();
 		if (empty($res[0]['approval_email'])){
@@ -6135,6 +6136,275 @@ class Form_model extends CI_Model {
 			'created_at' => $this->date
 		];
 		return $this->db->insert('exit_clearance_notes', $data);
+	}
+	public function getAllEmployee($nik = null)
+	{
+		$outsource = encrypt('Outsource');
+		$intership = encrypt('Internship');
+		$this->db->select('complete_name, nik, email');
+		$this->db->from('v_hris_employee_updated');
+		$this->db->where('action !=', 'mqTovi#d');
+		$this->db->where('employee_subgroup !=', $outsource);
+		$this->db->where('employee_subgroup !=', $intership);
+		$this->db->where('nik !=', $nik);
+		$this->db->not_like('nik', '0000', 'after');
+		$this->db->order_by('nik', 'ASC');
+		return $this->db->get()->result_array();
+	}
+	public function saveDataSection($data, $answers = [],$pic = [] , $handover = [], $note = [],$id_exit_form = null)
+	{
+		$this->db->trans_begin();
+		$exists = $this->db->get_where('exit_clearance_note_sections', ['id_section' => $note['id_section'], 'id_employee' => $note['id_employee']])->row_array();
+		
+		if($exists){
+			if(!empty($note)){
+				$this->db->where(['id_section' => $note['id_section'], 'id_employee' => $note['id_employee']]);
+				$this->db->update('exit_clearance_note_sections', $note);
+				if($this->db->trans_status() === FALSE) {
+					$this->db->trans_rollback();
+					return false;
+				}
+			}else{
+				$this->db->delete('exit_clearance_note_sections', ['id_section' => $data['id_section'], 'id_employee' => $this->emp_nik]);
+			}
+		}else{
+			if(!empty($note)){
+				$this->db->insert('exit_clearance_note_sections', $note);
+				if($this->db->trans_status() === FALSE) {
+					$this->db->trans_rollback();
+					return false;
+				}
+			}
+		}
+		$save_section = $this->db->get_where('exit_clearance_form_sections', ['id_exit_form' => $data['id_exit_form'], 'id_section' => $data['id_section']])->row_array();
+		if(empty($save_section)){
+			if(!empty($answers)){
+				$this->db->insert_batch('exit_clearance_answers', $answers);
+				if($this->db->trans_status() === FALSE) {
+					$this->db->trans_rollback();
+					return false;
+				}
+			}
+			if(!empty($handover)){
+				$this->db->insert('exit_clearance_handovers', $handover);
+				if($this->db->trans_status() === FALSE) {
+					$this->db->trans_rollback();
+					return false;
+				}
+				$id_handover = $this->db->insert_id();
+			}
+			if(!empty($pic)){
+				foreach ($pic as $key => &$value) {
+					$value['id_handover'] = $id_handover;
+				}
+				$this->db->insert_batch('exit_clearance_pic_handovers', $pic);
+				if($this->db->trans_status() === FALSE) {
+					$this->db->trans_rollback();
+					return false;
+				}
+			}
+			$this->db->insert('exit_clearance_form_sections', $data);
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}else{
+			$section = $this->db->get_where('exit_clearance_section_forms', ['id' => $data['id_section']])->row_array();
+			$question_in_section = $this->db
+				->select('id')
+				->get_where('exit_clearance_questions', [
+					'id_form_section' => $data['id_section']
+				])
+				->result_array();
+			$id_question_in_section = array_column($question_in_section, 'id');
+			$this->db->where('id_form', $data['id_exit_form']);
+			$this->db->where_in('id_question', $id_question_in_section);
+			$this->db->delete('exit_clearance_answers');
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+			if(!empty($answers)){
+				if((intval($section['id']) === 2) ){
+					$is_parent = array_filter($answers, function($answer){
+						return $answer['id_question'] === 3;
+					});
+					if($is_parent){
+						$this->db->insert_batch('exit_clearance_answers', $answers);
+						if($this->db->trans_status() === FALSE) {
+							$this->db->trans_rollback();
+							return false;
+						}
+					}
+				}else{
+					$this->db->insert_batch('exit_clearance_answers', $answers);
+					if($this->db->trans_status() === FALSE) {
+						$this->db->trans_rollback();
+						return false;
+					}
+				}
+			}
+			if(intval($section['id']) === 1){
+				$hand = $this->db->get_where('exit_clearance_handovers', ['id_form' => $data['id_exit_form']])->row_array();
+				if(!empty($hand)){
+					$this->db->delete('exit_clearance_pic_handovers', ['id_handover' => $hand['id']]);
+					$this->db->delete('exit_clearance_handovers', ['id_form' => $data['id_exit_form']]);
+					if($this->db->trans_status() === FALSE) {
+						$this->db->trans_rollback();
+						return false;
+					}
+				}
+				if(!empty($handover)){
+					$answers_parent = $this->db->get_where('exit_clearance_answers', ['id_form' => $data['id_exit_form'], 'id_question' => 1])->row_array();
+					$this->db->insert('exit_clearance_handovers', $handover);
+					if(!empty($answers_parent)){
+						$id_handover = $this->db->insert_id();
+						foreach ($pic as $key => &$value) {
+							$value['id_handover'] = $id_handover;
+						}
+						$this->db->insert_batch('exit_clearance_pic_handovers', $pic);
+					}
+					if($this->db->trans_status() === FALSE) {
+						$this->db->trans_rollback();
+						return false;
+					}
+				}
+			}
+		}
+		if($id_exit_form !== null){
+			$this->db->where('id', $id_exit_form);
+			$this->db->update('form_exit_clearance', ['status' => 0, 'updated_at' => date('Y-m-d H:i:s')]);
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		$this->db->trans_commit();
+		return true;
+	}
+	public function saveExitForm($id, $data = [])
+	{
+		$this->db->trans_begin();
+		$this->db->where('id', $id);
+		$exit_form = $this->db->get('form_exit_clearance')->row_array();
+		if(!$exit_form){
+			$this->db->trans_rollback();
+			return false;
+		}
+		$this->db->update('form_exit_clearance', ['status' => 1 , 'submitted_at' => date('Y-m-d H:i:s')], ['id' => $exit_form['id']]);
+		if($data){
+			$this->db->insert('form_exit_clearance', $data);
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		$this->db->trans_commit();
+		return true;
+	}
+	public function saveHandoverForm($id,$status, $data = [])
+	{
+		$this->db->trans_begin();
+		$this->db->where('id', $id);
+		$handover_form = $this->db->get('form_exit_clearance')->row_array();
+		if(!$handover_form){
+			$this->db->trans_rollback();
+			return false;
+		}
+		$this->db->update('form_exit_clearance', ['status' => $status , 'submitted_at' => date('Y-m-d H:i:s')], ['id' => $handover_form['id']]);
+		if($data){
+			$this->db->insert('form_exit_clearance', $data);
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		$this->db->trans_commit();
+		return true;
+	}
+	public function getQuestions($id_type,$id_Section = [])
+	{
+		$this->db->select('*');
+		$this->db->from('exit_clearance_questions');
+		$this->db->where('id_form_type', $id_type);
+		if(!empty($id_Section)){
+			$this->db->where_in('id_form_section', $id_Section);
+		}
+		$this->db->where('start_date <=', date('Y-m-d'));
+		$this->db->where('end_date >=', date('Y-m-d'));
+		return $this->db->get()->result_array();
+	}
+	public function getEmployeeAssign($id,$status){
+		$this->db->select('*');
+		$this->db->from('exit_clearance_pic_handovers');
+		$this->db->where('id_handover', $id);
+		if ((int)$status === 0) {
+			$this->db->where('status', 0);
+		} else {
+			$this->db->where('status !=', 0);
+		}
+		return $this->db->get()->result_array();
+	}
+	public function savePicHandover($type, $data)
+	{
+		$this->db->trans_begin();
+		if($type === 'employee'){
+			$this->db->where('id', $data['id']);
+			$this->db->update('exit_clearance_pic_handovers', [
+				'notes' => $data['description'],
+				'nama_alat' => $data['tool_name'],
+				'jumlah_alat' => $data['quantity'],
+				'status' => $data['status'],
+				'updated_at' => date('Y-m-d H:i:s')
+				]);
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}else{
+			$this->db->insert('exit_clearance_pic_handovers', $data);
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		$this->db->trans_commit();
+		return true;
+	}
+	public function deletePicHandover($id)
+	{
+		$this->db->trans_begin();
+		$this->db->select('*');
+		$this->db->from('exit_clearance_pic_handovers');
+		$this->db->where('id', $id);
+		$pic = $this->db->get()->row_array();
+		if(!$pic){
+			return false;
+		}
+		if($pic['nik'] && $pic['id_employee']){
+			$this->db->where('id', $id);
+			$this->db->update('exit_clearance_pic_handovers', ['status' => 0]);
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}else{
+			$this->db->where('id', $id);
+			$this->db->delete('exit_clearance_pic_handovers');
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		$this->db->trans_commit();
+		return true;
+	}
+	public function getOptions($id_question)
+	{
+		$this->db->select('*');
+		$this->db->from('exit_clearance_question_options');
+		$this->db->where_in('id_question', $id_question);
+		return $this->db->get()->result_array();
 	}
 
 }

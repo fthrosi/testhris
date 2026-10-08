@@ -158,6 +158,16 @@ class Inbox extends Admin_Controller
 				->set_status_header(400)
 				->set_output(json_encode($response));
 		}
+		if((int)$resignation_letters['status'] === 0){
+			$response = [
+				'status' => false,
+				'message' => 'Approval Failed. Resignation Letter is not submitted yet.',
+			];
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(400)
+				->set_output(json_encode($response));
+		}
 		$approval = $this->inbox_model->approved($form['id'],'RESIGNATION_LETTER', $status, $notes);
 		if($approval === false){
 			$response = [

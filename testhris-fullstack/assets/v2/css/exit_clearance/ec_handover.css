@@ -1,0 +1,119 @@
+.content-handover{
+    display: flex;
+    flex-direction: column;
+    gap:0.75rem;
+}
+
+.table-data {
+    width: 100%;
+}
+
+.table-data .col-no {
+    min-width: 4rem;
+    width: 4rem;
+}
+
+.table-data .col-keterangan {
+    min-width: 16rem;
+}
+
+.table-data .col-alat-nama {
+    min-width: 12rem;
+}
+
+.table-data .col-alat-jumlah {
+    min-width: 7rem;
+}
+
+.table-data .col-status {
+    min-width: 8rem;
+}
+
+.table-data .col-pic {
+    min-width: 15rem;
+}
+
+.table-data .col-email {
+    min-width: 17rem;
+}
+
+.table-data .col-action {
+    min-width: 7rem;
+}
+
+.table-data td {
+    white-space: nowrap;
+}
+
+.table-data td:nth-child(2) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.table-data thead th {
+    border-bottom: none;
+}
+.form-handover {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.form-group {
+    display:flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0;
+}
+.form-group label {
+    margin: 0;
+    min-width: 7rem;
+}
+.input-group {
+    display:flex;
+    flex-direction: column;
+}
+.input-group input {
+    width: 100%;
+}
+.input-group label {
+    margin-bottom: 0.25rem;
+}
+.form-check {
+    margin : 0;
+}
+.form-check-input {
+    margin-right: 0rem;
+}
+.radio-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.employee-pic-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.non-employee-pic-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.select-wrapper {
+    padding: 0.25rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+}
+.select-wrapper select {
+    width: 100%;
+    border: none;
+    outline: none;
+    background-color: transparent;
+}
+.input-group input[type="text"],
+.input-group input[type="number"],
+.input-group input[type="email"]{
+    padding: 0.25rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+}

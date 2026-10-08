@@ -117,19 +117,18 @@
                                         <a id="add_note" class="btn btn-md text-primary">+ Add Note</a>
                                         </div>
                                         <?php foreach ($reason as $key => $value) { ?>
-                                        <div class="bq-note">
-                                                <div class="bq-note-item">
-                                                <div class="bq-note-text">
-                                                        <p><?= $value['note'] ?></p>
+                                                <div class="bq-note">
+                                                        <div class="bq-note-item">
+                                                        <div class="bq-note-text">
+                                                                <p><?= $value['note'] ?></p>
+                                                        </div>
+                                                        <div class="bq-note-meta">
+                                                                <span class="bq-note-added">Added on <span class="date"><?= $value['created_at'] ?></span></span>
+                                                                <span class="bq-note-sep sep">|</span>
+                                                                <span class="bq-note-by text-dark">By <strong><?= $value['created_by'] ?></strong></span>
+                                                        </div>
+                                                        </div>
                                                 </div>
-                                                <div class="bq-note-meta">
-                                                        <span class="bq-note-added">Added on <span class="date"><?= $value['created_at'] ?></span></span>
-                                                        <span class="bq-note-sep sep">|</span>
-                                                        <span class="bq-note-by text-dark">By <strong><?= $value['created_by'] ?></strong></span>
-                                                        <!-- <a id="<?= $value['id'] ?>" style="cursor: pointer;"  onclick="return delete_notes(this.id)" class="link link-sm link-danger">Delete Note</a> -->
-                                                </div>
-                                                </div>
-                                        </div>
                                         <hr>
                                         <?php } ?>
                                 </div>

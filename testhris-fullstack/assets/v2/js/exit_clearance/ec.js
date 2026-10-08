@@ -394,7 +394,8 @@ $('#revise_btn').on('click', function(e) {
         input: 'textarea',
         inputPlaceholder: 'Enter your reason...',
         inputAttributes: {
-            'aria-label': 'Enter your reason'
+            'aria-label': 'Enter your reason',
+            'maxlength': 255
         },
         showCancelButton: true,
         confirmButtonText: 'Submit',
@@ -471,6 +472,9 @@ $('#revise_btn').on('click', function(e) {
                         text: 'Something went wrong while submitting the resignation request.',
                         timer: 5000,
                         timerProgressBar: true
+                    }).then(() => {
+                        // kalau mau reload setelah submit
+                        location.reload();
                     });
                 }
             });
@@ -539,6 +543,9 @@ $('#approve_btn').on('click', function(e) {
                             text: response.message,
                             timer: 5000,
                             timerProgressBar: true
+                        }).then(() => {
+                            // kalau mau reload setelah submit
+                            location.reload();
                         });
 
                     }
@@ -554,7 +561,10 @@ $('#approve_btn').on('click', function(e) {
                         text: 'Something went wrong while submitting the resignation request.',
                         timer: 5000,
                         timerProgressBar: true
-                    });
+                    }).then(() => {
+                            // kalau mau reload setelah submit
+                            location.reload();
+                        });
                 }
             });
         }

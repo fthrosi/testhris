@@ -59,7 +59,7 @@
         <input type="hidden" id="id_form_request" value="<?= $resignation_letter['id_form_request'] ?>">
         <input type="hidden" id="can_approve" value="<?= $can_approve ?>">
         <button id="approve_back" type="reset" class="btn btn-warning">Back</button>
-        <?php if ($can_approve): ?>
+        <?php if ($can_approve && (int)$resignation_letter['status'] !== 0): ?>
             <button id="revise_btn" type="button" class="btn btn-danger">Revise</button>
             <?php if (!$just_view): ?>
                 <button id="approve_btn" type="button" class="btn btn-success">Approve</button> 

@@ -1,9 +1,37 @@
+.wrap-icon-status {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
 .ec-step {
     border-bottom: 1px solid #575757;
     padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.ec-step-number{
     text-align: start;
 }
 .ec-step-note {
     padding: 20px;
     text-align: start;
+}
+.unsaved{
+    display: none;
+}
+.saved{
+    width: 32px;
+    height: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #1ac236;
+    opacity: 1;
+    cursor: default;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 1rem;
+    flex-shrink: 0;
+    box-sizing: border-box;
 }

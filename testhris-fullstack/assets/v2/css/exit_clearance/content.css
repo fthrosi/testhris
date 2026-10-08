@@ -175,6 +175,12 @@
     display: flex;
     gap:0.5rem;
 }
+.bq-note-text {
+    max-width: 100%;
+}
 
-/* #f9ca24
-#vvf6e58d */
+.bq-note-text p {
+    margin: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}

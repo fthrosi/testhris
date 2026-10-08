@@ -1,43 +1,8 @@
-<?php 
-        // $resignation_letter = isset($resignation_letter) ? $resignation_letter : array();
-        // $is_submitted = isset($resignation_letter['status']) && (int) $resignation_letter['status'] === 1;
-        // $can_edit = isset($resignation_letter['status']) && (int) $resignation_letter['status'] === 1;
-        // $just_view = isset($resignation_letter['status']) && ((int) $resignation_letter['status'] === 3 || (int) $resignation_letter['status'] === 4 );
-        // $resignation_date = !empty($resignation_letter['resignation_date']) ? date('d F Y', strtotime($resignation_letter['resignation_date'])) : '';
-        // $last_working_date = !empty($resignation_letter['last_date']) ? date('d F Y', strtotime($resignation_letter['last_date'])) : '';
-        // $notes = isset($resignation_letter['notes']) ? $resignation_letter['notes'] : '';
-        // $filename = isset($resignation_letter['file_path']) ? $resignation_letter['file_path'] : '';
-        // $is_generated = !empty($filename);
-        // $is_user = isset($form_request['employee_id']) && $form_request['employee_id'] === $nik;
-        // $id_ecode = encode_url($header['id_form_request']);
-        // $is_revised = isset($resignation_letter['status']) && (int) $resignation_letter['status'] === 2;
-        $form_steps =[
-            [
-                'title' => 'Exit Clearance',
-                'url'   => base_url("form/getQuestion/EC")
-            ],
-            [
-                'title' => 'Exit Interview',
-                'url'   => base_url("form/home_exit_clearance/{$id_ecode}")
-            ],
-            [
-                'title' => 'Handover',
-                'url'   => base_url("form/home_exit_clearance/{$id_ecode}")
-            ]
-        ]
-
-?>
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css"
+>
 <div class="wrap-submit-rl">
-        <!-- <input type="hidden" class="hidden" id="request_id" value="<?= $header['id_form_request'] ?>">
-        <input type="hidden" class="hidden" id="notice_period" value="<?= $employee['notice_period'] ?>">
-        <input type="hidden" class="hidden" id="is_submitted" value="<?= $is_submitted ? '1' : '0' ?>">
-        <input type="hidden" class="hidden" id="just_view" value="<?= $just_view ? '1' : '0' ?>">
-        <input type="hidden" class="hidden" id="edit_mode" value="0">
-        <input type="hidden" class="hidden" id="filename" value="<?= htmlspecialchars($filename, ENT_QUOTES, 'UTF-8') ?>">
-        <input type="hidden" class="hidden" id="is_generated" value="<?= $is_generated ? '1' : '0' ?>">
-        <input type="hidden" class="hidden" id="is_user" value="<?= $is_user ? '1' : '0' ?>">
-        <input type="hidden" class="hidden" id="id_encode" value="<?= $id_ecode ?>">
-        <input type="hidden" class="hidden" id="employee_id" value="<?= $form_request['employee_id'] ?>"> -->
         <div class="title-section-resign">
                 <div class="number-step-resign">
                         3
@@ -49,9 +14,23 @@
         <div class="content-home-ec">
             <div class="home-ec">
                 <?php foreach ($form_steps as $step_number => $step): ?>
+                <?php
+                        $saved = (int)$step['status'] === 1;
+                ?>
                     <div class="ec-step">
-                        <h5 style="font-weight: bold;"><?= $step['title'] ?></h5>
-                        <a style="color: #b9b9b9; text-decoration: none;" href="<?= $step['url'] ?>">Click to view</a>
+                        <div class="ec-step-number">
+                                <h5 style="font-weight: bold;"><?= $step['title'] ?></h5>
+                                <?php if ($step['can_access']): ?>
+                                        <a style="color: #b9b9b9; text-decoration: none;" href="<?= $step['url'] ?>">Click to view</a>
+                                <?php else: ?>
+                                        <span id="cantAccess" style="color: #b9b9b9; cursor: pointer;">Click to view</span>
+                                <?php endif; ?>
+                        </div>
+                        <div class="wrap-icon-status">
+                                <div id="flag-<?= $step['id']; ?>" class=" <?= $saved ? 'saved' : 'unsaved'; ?>">
+                                        <i class="fa-solid fa-check"></i>
+                                </div>
+                        </div>
                     </div>
                 <?php endforeach; ?>
                 <div class="ec-step-note">

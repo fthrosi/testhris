@@ -103,6 +103,23 @@ class Inbox_model extends CI_Model {
 				$this->db->trans_rollback();
 				return false;
 			}
+		}else{
+			$exit = $this->db->get_where('exit_clearance',['id_form_request' => $id])->row_array();
+			if(empty($exit)){
+				$this->db->trans_rollback();
+				return false;
+			}
+			$data = [
+				'id_exit_clearance' => $exit['id'],
+				'id_form_type' => 1,
+				'status' => 0,
+				'created_at' => $this->date,
+			];
+			$this->db->insert('form_exit_clearance', $data);
+			if($this->db->trans_status() === FALSE){
+				$this->db->trans_rollback();
+				return false;
+			}
 		}
 		if ($this->db->trans_status() === FALSE) {
 			$this->db->trans_rollback();

@@ -136,6 +136,8 @@
     <!-- <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script> -->
     <!-- /////////////////////////////////////////START EXIT CLEARANCE 2026///////////////////////////////////////////// -->
     <script src="<?= base_url(); ?>assets/v2/js/exit_clearance/ec.js?ver=<?= $version;?>"></script>
+    <script src="<?= base_url(); ?>assets/v2/js/exit_clearance/ec_form.js?ver=<?= $version;?>"></script>
+    <script src="<?= base_url(); ?>assets/v2/js/exit_clearance/handover.js?ver=<?= $version;?>"></script>
     <!-- /////////////////////////////////////////END EXIT CLEARANCE 2026///////////////////////////////////////////// -->
     <link rel="stylesheet" href="<?= base_url(); ?>/assets/v2/css/editors/quill.css?ver=2.6.0">
 </body>

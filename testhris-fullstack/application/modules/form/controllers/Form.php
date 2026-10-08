@@ -289,7 +289,46 @@ class Form extends Admin_Controller
 		header('Content-type: application/json');
 		echo json_encode($response);
 	}
-	
+	private function getHeaderInfo($id)
+	{
+		$id = decode_url($id);
+		$data['form_request'] = $this->m_global->find('form_request', 'id', $id)->row_array();
+		if(empty($data['form_request'])){
+			print_r('Request not found');die;
+		}
+		$data['header'] = $this->m_global->find('exit_clearance', 'id_form_request', $id)->row_array();
+		if(empty($data['header'])){
+			print_r('Exit clearance not found');die;
+		}
+		$employee = $this->form_model->get_data_employee($data['form_request']['employee_id']);
+		$data['employee'] = array(
+			'complete_name' => decrypt($employee[0]->complete_name),
+			'position' => decrypt($employee[0]->position),
+			'nik' => $employee[0]->nik,
+			'email' => decrypt($employee[0]->email)
+		);
+		$data['roles'] = $this->roles;
+		$data['resignation_letter'] = $this->m_global->find('exit_clearance_resignation_letters', 'id_form_request', $id)->row_array();
+			$status_resign = $data['resignation_letter']['status'];
+			$status_exit = $data['header']['status'];
+			if($status_exit == 0){
+				$data['current_step'] = (int) $status_resign === 0 ? 1 : ((int) $status_resign === 1 ? 2 : ((int) $status_resign === 2 ? 1 : ((int)$status_resign === 3 ? 3 : 1)));
+			}else{
+				$data['current_step'] = (int) $status_exit === 1 ? 4 : ((int) $status_exit === 2 ? 5 : 3);
+			}
+		$data['reason'] = $this->form_model->getReason($data['resignation_letter']['id'], "Resignation Letter");
+		$data['count_mysubmission'] = count($this->home_model->getMySubmissionList());
+		$data['count_approval_ec'] = count($this->inbox_model->get_my_ec_approver());
+		$data['count_approval'] = count($this->inbox_model->getApprovalList());
+		$data['count_need_tm_cek'] = count($this->inbox_model->getApprovalListTMCek_ztm());
+		$data['count_need_mdcr_cek'] = count($this->inbox_model->getApprovalListMDCRCek());
+		$data['count_need_mdcr_after_cek'] = count($this->inbox_model->getApprovalListMDCRAfterCek());
+		$data['count_mdcr_after_grouping_need_approved'] = count($this->inbox_model->getReqMDCRAfterGroupingNeedApproved());
+		$data['count_review'] = count($this->inbox_model->getReviewList());
+		$data['count_pa_mgmt'] = count($this->inbox_model->getPAList());
+		$data['content'] = 'form/exit_clearance/layout_ec';
+		return $data;
+	}
 	public function generate_resignation_letter(){
 		
 		$req_id = $this->input->post('request_id');
@@ -652,7 +691,7 @@ class Form extends Admin_Controller
 				->set_output(json_encode($response));
 		}
 	}
-	public function getQuestion($code_type)
+	public function getQuestion($code_type,$id)
 	{
 		$form_type = $this->m_global->find('exit_clearance_form_types', 'code', $code_type)->row_array();
 		if (empty($form_type)) {
@@ -664,16 +703,302 @@ class Form extends Admin_Controller
 					'message' => 'Form type not found.',
 				]));
 		}
+		$data = $this->getHeaderInfo($id);
+		// dumper($data['header']['id']);
+		$data['form_exit'] = $this->m_global->getRow('*', 'form_exit_clearance', [
+			'id_exit_clearance' => $data['header']['id'],
+			'id_form_type' => $form_type['id'],
+		]);
 		switch ($form_type['code']) {
 			case 'EC':
 				$section = $this->m_global->find('exit_clearance_section_forms', 'id_form_type', $form_type['id'])->result_array();
+				$array_id = array_column($section, 'id');
 				
+				$question = $this->form_model->getQuestions($form_type['id'], $array_id);
+				$array_id = array_column($question, 'id');
+				$option = $this->form_model->getOptions($array_id);
+				$save_section = $this->m_global->find('exit_clearance_form_sections', 'id_exit_form', $data['form_exit']['id'])->result_array();
+				
+				$question_map = [];
+				$pic = [];
+				$answers = $this->m_global->find('exit_clearance_answers', 'id_form', $data['form_exit']['id'])->result_array();
+				$handovers = $this->m_global->find('exit_clearance_handovers', 'id_form', $data['form_exit']['id'])->row_array();
+				if($handovers){
+					$pics = $this->m_global->find('exit_clearance_pic_handovers', 'id_handover', $handovers['id'])->result_array();
+				}
+				$notes = $this->m_global->find('exit_clearance_note_sections', 'id_form', $data['form_exit']['id'])->result_array();
+				
+				foreach ($question as $q) {
+					$q['options'] = [];
+					$q['children'] = [];
+					$question_map[$q['id']] = $q;
+				}
+				foreach ($option as $o) {
+					$question_id = $o['id_question'];
+					if (isset($question_map[$question_id])) {
+						$question_map[$question_id]['options'][] = $o;
+					}
+				}
+				foreach ($answers as $a){
+					$question_id = $a['id_question'];
+					if (isset($question_map[$question_id])) {
+						$question_map[$question_id]['answer'] = $a['answer'];
+						$question_map[$question_id]['jumlah'] = $a['jumlah'];
+					}
+				}
+				foreach ($section as $s) {
+					$data['form'][$s['id']] = [
+						'id' => $s['id'],
+						'name' => $s['name'],
+						'questions' => [],
+						'saved' => false,
+						'pic' => [],
+						'note' => [],
+					];
+				}
+				foreach ($save_section as $ss) {
+					$section_id = $ss['id_section'];
+					if (isset($data['form'][$section_id])) {
+						$data['form'][$section_id]['saved'] = true;
+					}
+				}
+				foreach($notes as $n){
+					$id_Section = $n['id_section'];
+					if(isset($data['form'][$id_Section])){
+						$data['form'][$id_Section]['note'][] = $n;
+					}
+				}
+				foreach ($pics as $p) {
+					if (!empty($p['id_employee']) && !empty($p['email'])) {
+						$pic[] = [$p['id_employee'], $p['name'], $p['email']];
+					}
+				}
+				$parents = [];
+				$children = [];
+				foreach ($question_map as $question_item) {
+					$parent_id = $question_item['id_parrent_question'] ?? null;
+					if ($parent_id === null || $parent_id === '') {
+						$parents[$question_item['id']] = $question_item;
+					} else {
+						$children[] = $question_item;
+					}
+				}
+				foreach ($children as $child) {
+					$parent_id = $child['id_parrent_question'];
+					if (isset($parents[$parent_id])) {
+						$parents[$parent_id]['children'][] = $child;
+					} else {
+						$parents[$child['id']] = $child;
+					}
+				}
+				
+				uasort($parents, function ($a, $b) {
+					return (int) $a['sequence'] <=> (int) $b['sequence'];
+				});
+			
+				foreach ($parents as &$parent) {
+					if (!empty($parent['children'])) {
+						usort($parent['children'], function ($a, $b) {
+							return (int) $a['sequence'] <=> (int) $b['sequence'];
+						});
+					}
+				}
+				unset($parent);
+				foreach ($parents as $parent_question) {
+					$section_id = $parent_question['id_form_section'];
+					if(intval($section_id) === 1){
+						$data['form'][$section_id]['pic'] = $pic;
+					}
+					if (isset($data['form'][$section_id])) {
+						$data['form'][$section_id]['questions'][$parent_question['id']] = $parent_question;
+					}
+				}
+				$data['my_nik'] = $this->emp_nik;
+				$data['main'] = 'form/exit_clearance/exit_clearance';
 				break;
 			
 			default:
 				# code...
 				break;
 		}
+		// dumper($data);
+		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
+	}
+	public function saveSection()
+	{
+		$section_id = $this->input->post('section_id');
+		$answers = $this->input->post('answer');
+		$pic = $this->input->post('pic');
+		$id_exit_form = $this->input->post('id_form_exit');
+		$jumlah = $this->input->post('jumlah');
+		$note = $this->input->post('note');
+		if (empty($section_id)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(400)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Section ID are required.',
+				]));
+		}
+		$exit_form = $this->m_global->find('form_exit_clearance', 'id', $id_exit_form)->row_array();
+		$id_exit = (int)$exit_form['status'] === 1 ? $exit_form['id'] : null;
+		if (empty($exit_form)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Exit form not found.',
+				]));
+		}
+		$section = $this->m_global->find('exit_clearance_section_forms', 'id', $section_id)->row_array();
+		if (empty($section)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Section not found.',
+				]));
+		}
+		if(!empty($answers)){
+			$ans = [];
+			foreach($answers as $question_id => $answer){
+				$id_ans[] = [$exit_form['id'],$question_id];
+				$ans[] = [
+					'id_form' => $exit_form['id'],
+					'id_question' => $question_id,
+					'answer' => $answer,
+					'jumlah' => $jumlah[$question_id] ?? null,
+					'status' => 1,
+					'created_at' => date('Y-m-d H:i:s'),
+				];
+			}
+		}
+		$id_pics = [];
+		if(!empty($pic)){
+			$data_handover = [
+				'id_form' => $exit_form['id'],
+				'status' => 1,
+				'created_at' => date('Y-m-d H:i:s'),
+			];
+			foreach($pic as $id_question => $value){
+				foreach($value as $v){
+					[$name,$nik,$email] = explode('-', $v);
+					$id_pics[] = $nik;
+					$pic_data[] = [
+							'id_handover' =>'',
+							'id_employee' => $nik,
+							'name' => $name,
+							'nik' => $nik,
+							'email' => $email,
+							'status' => 0,
+							'created_at' => date('Y-m-d H:i:s'),
+					];
+				}
+			}
+		}
+		$data = [
+			'id_exit_form' => $exit_form['id'],
+			'id_section' => $section['id'],
+			'is_saved' => 1,
+			'save_at' => date('Y-m-d H:i:s'),
+			'created_at' => date('Y-m-d H:i:s'),
+		];
+		$data_note = [
+			'id_form' => $exit_form['id'],
+			'id_section' => $section['id'],
+			'id_employee' => $this->emp_nik,
+			'note' => $note,
+			'created_at' => date('Y-m-d H:i:s'),
+		];
+		$save = $this->form_model->saveDataSection($data, $ans ?? [], $pic_data ?? [], $data_handover ?? [], $data_note ?? [], $id_exit);
+		if($save === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save section data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Section data saved successfully.',
+			]));
+
+	}
+	public function saveFormExitClearance()
+	{
+		$id_exit_form = $this->input->post('idFormExit');
+		$type = $this->m_global->find('exit_clearance_form_types', 'code', 'EH')->row_array();
+		if (empty($type)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Form type not found.',
+				]));
+		}
+		$exit_form = $this->m_global->find('form_exit_clearance', 'id', $id_exit_form)->row_array();
+		if (empty($exit_form)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Exit form not found.',
+				]));
+		}
+		$handover_form = $this->m_global->getRow('*', 'form_exit_clearance', [
+			'id_exit_clearance' => $exit_form['id_exit_clearance'],
+			'id_form_type' => $type['id'],
+		]);
+		if(empty($handover_form)){
+			$data = [
+				'id_exit_clearance' => $exit_form['id_exit_clearance'],
+				'id_form_type' => $type['id'],
+				'status' => 0,
+				'created_at' => date('Y-m-d H:i:s'),
+			];
+		}
+		$save = $this->form_model->saveExitForm($id_exit_form, $data ?? []);
+		if($save === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save exit clearance form.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Exit clearance form saved successfully.',
+			]));
+	}
+	public function getAllEmployee()
+	{
+		$nik = $this->emp_nik;
+		$employees = $this->form_model->getAllEmployee($nik);
+		foreach ($employees as &$employee) {
+			$employee['complete_name'] = decrypt($employee['complete_name']);
+			$employee['email'] = decrypt($employee['email']);
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_output(json_encode([
+				'status' => true,
+				'data'   => $employees
+			]));
 	}
 	public function detail($formType, $id)
 	{
@@ -839,45 +1164,208 @@ class Form extends Admin_Controller
 	}
 	public function home_exit_clearance($id)
 	{
-		$id = decode_url($id);
-		$data['form_request'] = $this->m_global->find('form_request', 'id', $id)->row_array();
-		if(empty($data['form_request'])){
-			print_r('Request not found');die;
+		$data = $this->getHeaderInfo($id);
+		$id_encode = encode_url($data['form_request']['id']);
+		$form_exit = $this->m_global->find('form_exit_clearance','id_exit_clearance',$data['header']['id'])->result_array();
+		$formtype = $this->m_global->find('exit_clearance_form_types')->result_array();
+		usort($formtype, function ($first, $second) {
+			return (int) $first['id'] <=> (int) $second['id'];
+		});
+		foreach($form_exit as $exit)
+		{
+			$exit_form[$exit['id_form_type']] = $exit;
 		}
-		$data['header'] = $this->m_global->find('exit_clearance', 'id_form_request', $id)->row_array();
-		if(empty($data['header'])){
-			print_r('Exit clearance not found');die;
-		}
-		$employee = $this->form_model->get_data_employee($data['form_request']['employee_id']);
-		$data['employee'] = array(
-			'complete_name' => decrypt($employee[0]->complete_name),
-			'position' => decrypt($employee[0]->position),
-			'nik' => $employee[0]->nik,
-			'email' => decrypt($employee[0]->email)
-		);
-		$data['roles'] = $this->roles;
-		$data['resignation_letter'] = $this->m_global->find('exit_clearance_resignation_letters', 'id_form_request', $id)->row_array();
-			$status_resign = $data['resignation_letter']['status'];
-			$status_exit = $data['header']['status'];
-			if($status_exit == 0){
-				$data['current_step'] = (int) $status_resign === 0 ? 1 : ((int) $status_resign === 1 ? 2 : ((int) $status_resign === 2 ? 1 : ((int)$status_resign === 3 ? 3 : 1)));
-			}else{
-				$data['current_step'] = (int) $status_exit === 1 ? 4 : ((int) $status_exit === 2 ? 5 : 3);
+		
+		$previous_saved = true;
+		foreach($formtype as $type)
+		{
+			$id_form_type = $type['id'];
+			$data['form_steps'][$id_form_type]['id'] = $type['id'];
+			$data['form_steps'][$id_form_type]['title'] = $type['name'];
+			$data['form_steps'][$id_form_type]['status'] = $exit_form[$id_form_type]['status'] ?? 0;
+			$data['form_steps'][$id_form_type]['can_access'] = $previous_saved;
+			$previous_saved = (int) $data['form_steps'][$id_form_type]['status'] === 1;
+			
+			switch ($type['code']) {
+				case 'EC':
+					$data['form_steps'][$id_form_type]['url'] = base_url("form/getQuestion/EC/{$id_encode}");
+					break;
+				case 'EI':
+					$data['form_steps'][$id_form_type]['url'] = base_url("form/home_exit_clearance/{$id_encode}");
+					break;
+				case 'EH':
+					$data['form_steps'][$id_form_type]['url'] = base_url("form/handoverHome/{$id_encode}");
+					break;
+				default:
+					$data['form_steps'][$id_form_type]['url'] = base_url("form/home_exit_clearance/{$id_encode}");
+					break;
 			}
-		$data['reason'] = $this->form_model->getReason($data['resignation_letter']['id'], "Resignation Letter");
-		$data['count_mysubmission'] = count($this->home_model->getMySubmissionList());
-		$data['count_approval_ec'] = count($this->inbox_model->get_my_ec_approver());
-		$data['count_approval'] = count($this->inbox_model->getApprovalList());
-		$data['count_need_tm_cek'] = count($this->inbox_model->getApprovalListTMCek_ztm());
-		$data['count_need_mdcr_cek'] = count($this->inbox_model->getApprovalListMDCRCek());
-		$data['count_need_mdcr_after_cek'] = count($this->inbox_model->getApprovalListMDCRAfterCek());
-		$data['count_mdcr_after_grouping_need_approved'] = count($this->inbox_model->getReqMDCRAfterGroupingNeedApproved());
-		$data['count_review'] = count($this->inbox_model->getReviewList());
-		$data['count_pa_mgmt'] = count($this->inbox_model->getPAList());
-		$data['content'] = 'form/exit_clearance/layout_ec';
+		}
 		$data['main'] = 'form/exit_clearance/exit_clearance_home';
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
 
+	}
+	public function handoverHome($id)
+	{
+		$data = $this->getHeaderInfo($id);
+		$id_EC = $this->m_global->find('exit_clearance_form_types','code','EC')->row_array()['id'];
+		$id_EH = $this->m_global->find('exit_clearance_form_types','code','EH')->row_array()['id'];
+		$EC_form = $this->m_global->getRow('*', 'form_exit_clearance', [
+			'id_exit_clearance' => $data['header']['id'],
+			'id_form_type' => $id_EC,
+		]);
+		$EH_form = $this->m_global->getRow('*', 'form_exit_clearance', [
+			'id_exit_clearance' => $data['header']['id'],
+			'id_form_type' => $id_EH,
+		]);
+		$data['form_handover'] = $EH_form;
+		$handovers = $this->m_global->find('exit_clearance_handovers', 'id_form', $EC_form['id'])->row_array();
+		$data['select_pic'] = $this->form_model->getEmployeeAssign($handovers['id'], 0);
+		$pics = $this->form_model->getEmployeeAssign($handovers['id'], 1);
+		foreach ($pics as &$pic) {
+			$pic['word_status'] = (int) $pic['status'] === 1 ? 'Pending' : 'Complete';
+		}
+		// dumper($data['form_handover']);
+		$data['pic'] = $pics;
+		$data['handover'] = $handovers;
+		$data['main'] = 'form/exit_clearance/handover';
+		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
+	}
+	public function savePicHandover()
+	{
+		$tool_name = $this->input->post('tool_name');
+		$quantity = $this->input->post('quantity');
+		$pic_type = $this->input->post('pic_type');
+		$id_pic = $this->input->post('employee_id');
+		$status = $this->input->post('status');
+		$name = $this->input->post('name');
+		$email = $this->input->post('email');
+		$description = $this->input->post('description');
+		$id_handover = $this->input->post('id_handover');
+		
+		if($pic_type === 'employee'){
+			$data = [
+				'id' => $id_pic,
+				'tool_name' => $tool_name,
+				'quantity' => $quantity,
+				'status' => $status,
+				'description' => $description,
+			];
+		}else if($pic_type === 'non_employee'){
+			$handover = $this->m_global->find('exit_clearance_handovers', 'id', $id_handover)->row_array();
+			if (empty($handover)) {
+				return $this->output
+					->set_content_type('application/json')
+					->set_status_header(404)
+					->set_output(json_encode([
+						'status' => false,
+						'message' => 'Handover not found.',
+					]));
+			}
+			$data = [
+				'id_handover' => $handover['id'],
+				'notes' => $description,
+				'nama_alat' => $tool_name,
+				'jumlah_alat' => $quantity,
+				'status' => $status,
+				'name' => $name,
+				'email' => $email,
+				'created_at' => date('Y-m-d H:i:s')
+			];
+		}
+		$save = $this->form_model->savePicHandover($pic_type, $data);
+		if($save === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save handover data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Handover data saved successfully.',
+			]));
+
+	}
+	public function deletePicHandover()
+	{
+		$idPic = $this->input->post('id_pic');
+		$delete = $this->form_model->deletePicHandover($idPic);
+		if($delete === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to delete handover data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Handover data deleted successfully.',
+			]));
+	}
+	public function saveHandover()
+	{
+		$id_handover = $this->input->post('id_form_handover');
+		$status = $this->input->post('status');
+		$type = $this->m_global->find('exit_clearance_form_types', 'code', 'EI')->row_array();
+		if (empty($type)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Form type not found.',
+				]));
+		}
+		$handover_form = $this->m_global->find('form_exit_clearance', 'id', $id_handover)->row_array();
+		if (empty($handover_form)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Handover form not found.',
+				]));
+		}
+		$interview_form = $this->m_global->getRow('*', 'form_exit_clearance', [
+			'id_exit_clearance' => $handover_form['id_exit_clearance'],
+			'id_form_type' => $type['id'],
+		]);
+		if(empty($interview_form)){
+			$data = [
+				'id_exit_clearance' => $handover_form['id_exit_clearance'],
+				'id_form_type' => $type['id'],
+				'status' => 0,
+				'created_at' => date('Y-m-d H:i:s'),
+			];
+		}
+		$save = $this->form_model->saveHandoverForm($id_handover, $status, $data ?? []);
+		if($save === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save exit clearance form.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Exit clearance form saved successfully.',
+			]));
 	}
 	public function detail_full_approve($formType, $id)
 	{
