@@ -138,6 +138,7 @@
     <script src="<?= base_url(); ?>assets/v2/js/exit_clearance/ec.js?ver=<?= $version;?>"></script>
     <script src="<?= base_url(); ?>assets/v2/js/exit_clearance/ec_form.js?ver=<?= $version;?>"></script>
     <script src="<?= base_url(); ?>assets/v2/js/exit_clearance/handover.js?ver=<?= $version;?>"></script>
+    <script src="<?= base_url(); ?>assets/v2/js/exit_clearance/exit_interview.js?ver=<?= $version;?>"></script>
     <!-- /////////////////////////////////////////END EXIT CLEARANCE 2026///////////////////////////////////////////// -->
     <link rel="stylesheet" href="<?= base_url(); ?>/assets/v2/css/editors/quill.css?ver=2.6.0">
 </body>

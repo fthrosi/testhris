@@ -704,7 +704,6 @@ class Form extends Admin_Controller
 				]));
 		}
 		$data = $this->getHeaderInfo($id);
-		// dumper($data['header']['id']);
 		$data['form_exit'] = $this->m_global->getRow('*', 'form_exit_clearance', [
 			'id_exit_clearance' => $data['header']['id'],
 			'id_form_type' => $form_type['id'],
@@ -816,7 +815,92 @@ class Form extends Admin_Controller
 				$data['my_nik'] = $this->emp_nik;
 				$data['main'] = 'form/exit_clearance/exit_clearance';
 				break;
+			case 'EI':
+				
+				$question = $this->form_model->getQuestions($form_type['id']);
+				$array_id = array_column($question, 'id');
+				$question_translations = $this->form_model->getQuestionTranslation($array_id);
+				
+				$option = $this->form_model->getOptions($array_id);
+				$option_id = array_column($option, 'id');
+				$option_translations = $this->form_model->getOptionTranslation($option_id);
+				$question_map = [];
+				$answers = $this->m_global->find('exit_clearance_answers', 'id_form', $data['form_exit']['id'])->result_array();
+				
+				foreach ($question as $q) {
+					$q['options'] = [];
+					$q['children'] = [];
+					$question_map[$q['id']] = $q;
+				}
+				foreach ($question_translations as $qt) {
+					$question_id = $qt['id_question'];
+					if (isset($question_map[$question_id])) {
+						$question_map[$question_id]['translation'] = $qt['question'];
+					}
+				}
+				// dumper($question_map);
+				foreach ($option as $o) {
+					$option_map[$o['id']] = $o;
+					$option_map[$o['id']]['translation'] = '';
+				}
+				foreach ($option_translations as $ot) {
+					$option_id = $ot['id_option'];
+					if (isset($option_map[$option_id])) {
+						$option_map[$option_id]['translation'] = $ot['title'];
+					}
+				}
+				foreach ($option_map as $o) {
+					$question_id = $o['id_question'];
+					if (isset($question_map[$question_id])) {
+						$question_map[$question_id]['options'][] = $o;
+					}
+				}
+				// dumper($question_map);
+				foreach ($answers as $a){
+					$question_id = $a['id_question'];
+					if (isset($question_map[$question_id])) {
+						$question_map[$question_id]['answer'] = $a['answer'];
+					}
+				}
+				$parents = [];
+				$children = [];
+				foreach ($question_map as $question_item) {
+					$parent_id = $question_item['id_parrent_question'] ?? null;
+					if ($parent_id === null || $parent_id === '') {
+						$parents[$question_item['id']] = $question_item;
+					} else {
+						$children[] = $question_item;
+					}
+				}
+				foreach ($children as $child) {
+					$parent_id = $child['id_parrent_question'];
+					if (isset($parents[$parent_id])) {
+						$parents[$parent_id]['children'][] = $child;
+					} else {
+						$parents[$child['id']] = $child;
+					}
+				}
+				
+				uasort($parents, function ($a, $b) {
+					return (int) $a['sequence'] <=> (int) $b['sequence'];
+				});
 			
+				foreach ($parents as &$parent) {
+					if (!empty($parent['children'])) {
+						usort($parent['children'], function ($a, $b) {
+							return (int) $a['sequence'] <=> (int) $b['sequence'];
+						});
+					}
+				}
+				unset($parent);
+				foreach ($parents as $parent_question) {
+					$data['form'][$parent_question['id']] = $parent_question;
+				}
+				// dumper($data['form']);
+				$data['my_nik'] = $this->emp_nik;
+				$data['main'] = 'form/exit_clearance/exit_clearance_exit_interview';
+				break;
+
 			default:
 				# code...
 				break;
@@ -931,6 +1015,60 @@ class Form extends Admin_Controller
 				'message' => 'Section data saved successfully.',
 			]));
 
+	}
+	public function saveInterview()
+	{
+		$post_data = $this->input->post();
+		$id_exit_form = $post_data['idFormExit'];
+		foreach($post_data as $key => $value){
+			if($key !== 'idFormExit'){
+				$data[] = [
+					'id_form' => $id_exit_form,
+					'id_question' => $key,
+					'answer' => $value,
+					'status' => 1,
+					'created_at' => date('Y-m-d H:i:s'),
+				];
+			}
+		}
+		$save = $this->form_model->saveDataSection([],$data,[],[],[],$id_exit_form,'Exit Interview');
+		if($save === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save exit interview data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Exit interview data saved successfully.',
+			]));
+	}
+	public function editInterview()
+	{
+		$id_exit_form = $this->input->post('idFormExit');
+		$save = $this->form_model->editInterview($id_exit_form);
+		if($save === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to update exit interview data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Exit interview data updated successfully.',
+			]));
 	}
 	public function saveFormExitClearance()
 	{
@@ -1191,7 +1329,7 @@ class Form extends Admin_Controller
 					$data['form_steps'][$id_form_type]['url'] = base_url("form/getQuestion/EC/{$id_encode}");
 					break;
 				case 'EI':
-					$data['form_steps'][$id_form_type]['url'] = base_url("form/home_exit_clearance/{$id_encode}");
+					$data['form_steps'][$id_form_type]['url'] = base_url("form/getQuestion/EI/{$id_encode}");
 					break;
 				case 'EH':
 					$data['form_steps'][$id_form_type]['url'] = base_url("form/handoverHome/{$id_encode}");

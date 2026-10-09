@@ -6151,7 +6151,7 @@ class Form_model extends CI_Model {
 		$this->db->order_by('nik', 'ASC');
 		return $this->db->get()->result_array();
 	}
-	public function saveDataSection($data, $answers = [],$pic = [] , $handover = [], $note = [],$id_exit_form = null)
+	public function saveDataSection($data = [], $answers = [],$pic = [] , $handover = [], $note = [],$id_exit_form = null, $typeForm = null)
 	{
 		$this->db->trans_begin();
 		$exists = $this->db->get_where('exit_clearance_note_sections', ['id_section' => $note['id_section'], 'id_employee' => $note['id_employee']])->row_array();
@@ -6178,6 +6178,14 @@ class Form_model extends CI_Model {
 		}
 		$save_section = $this->db->get_where('exit_clearance_form_sections', ['id_exit_form' => $data['id_exit_form'], 'id_section' => $data['id_section']])->row_array();
 		if(empty($save_section)){
+			if($typeForm === 'Exit Interview'){
+				$this->db->where('id_form', $id_exit_form);
+				$this->db->delete('exit_clearance_answers');
+				if($this->db->trans_status() === FALSE) {
+					$this->db->trans_rollback();
+					return false;
+				}
+			}
 			if(!empty($answers)){
 				$this->db->insert_batch('exit_clearance_answers', $answers);
 				if($this->db->trans_status() === FALSE) {
@@ -6203,10 +6211,12 @@ class Form_model extends CI_Model {
 					return false;
 				}
 			}
-			$this->db->insert('exit_clearance_form_sections', $data);
-			if($this->db->trans_status() === FALSE) {
-				$this->db->trans_rollback();
-				return false;
+			if(!empty($data)){
+				$this->db->insert('exit_clearance_form_sections', $data);
+				if($this->db->trans_status() === FALSE) {
+					$this->db->trans_rollback();
+					return false;
+				}
 			}
 		}else{
 			$section = $this->db->get_where('exit_clearance_section_forms', ['id' => $data['id_section']])->row_array();
@@ -6271,9 +6281,18 @@ class Form_model extends CI_Model {
 				}
 			}
 		}
-		if($id_exit_form !== null){
+		if($id_exit_form !== null && $typeForm !== 'Exit Interview'){
 			$this->db->where('id', $id_exit_form);
 			$this->db->update('form_exit_clearance', ['status' => 0, 'updated_at' => date('Y-m-d H:i:s')]);
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		if($id_exit_form !== null && $typeForm === 'Exit Interview')
+		{
+			$this->db->where('id', $id_exit_form);
+			$this->db->update('form_exit_clearance', ['status' => 1, 'updated_at' => date('Y-m-d H:i:s')]);
 			if($this->db->trans_status() === FALSE) {
 				$this->db->trans_rollback();
 				return false;
@@ -6282,6 +6301,20 @@ class Form_model extends CI_Model {
 		$this->db->trans_commit();
 		return true;
 	}
+
+	public function editInterview($idForm)
+	{
+		$this->db->trans_begin();
+		$this->db->where('id', $idForm);
+		$this->db->update('form_exit_clearance', ['status' => 0, 'updated_at' => date('Y-m-d H:i:s')]);
+		if($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return false;
+		}
+		$this->db->trans_commit();
+		return true;
+	}
+
 	public function saveExitForm($id, $data = [])
 	{
 		$this->db->trans_begin();
@@ -6404,6 +6437,21 @@ class Form_model extends CI_Model {
 		$this->db->select('*');
 		$this->db->from('exit_clearance_question_options');
 		$this->db->where_in('id_question', $id_question);
+		return $this->db->get()->result_array();
+	}
+
+	public function getQuestionTranslation($id_question)
+	{
+		$this->db->select('*');
+		$this->db->from('ec_question_translation');
+		$this->db->where_in('id_question', $id_question);
+		return $this->db->get()->result_array();
+	}
+	public function getOptionTranslation($id_option)
+	{
+		$this->db->select('*');
+		$this->db->from('ec_option_translation');
+		$this->db->where_in('id_option', $id_option);
 		return $this->db->get()->result_array();
 	}
 
