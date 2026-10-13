@@ -114,7 +114,7 @@
                                 <div class="nk-reply-entry entry">
                                 <div class="nk-block">
                                         <div class="nk-block-head nk-block-head-sm nk-block-between">
-                                        <a id="add_note" class="btn btn-md text-primary">+ Add Note</a>
+                                        <a id="add_note" data-id="<?= $header['id_form_request'] ?>" data-type="Resignation Letter" class="btn btn-md text-primary">+ Add Note</a>
                                         </div>
                                         <?php foreach ($reason as $key => $value) { ?>
                                                 <div class="bq-note">

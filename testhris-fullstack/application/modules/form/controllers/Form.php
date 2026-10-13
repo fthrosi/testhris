@@ -289,7 +289,7 @@ class Form extends Admin_Controller
 		header('Content-type: application/json');
 		echo json_encode($response);
 	}
-	private function getHeaderInfo($id)
+	private function getHeaderInfo($id,$type = 'Resignation Letter')
 	{
 		$id = decode_url($id);
 		$data['form_request'] = $this->m_global->find('form_request', 'id', $id)->row_array();
@@ -316,7 +316,8 @@ class Form extends Admin_Controller
 			}else{
 				$data['current_step'] = (int) $status_exit === 1 ? 4 : ((int) $status_exit === 2 ? 5 : 3);
 			}
-		$data['reason'] = $this->form_model->getReason($data['resignation_letter']['id'], "Resignation Letter");
+		$id_for_reason = $type === 'Resignation Letter' ? $data['resignation_letter']['id'] : $data['header']['id'];
+		$data['reason'] = $this->form_model->getReason($id_for_reason, $type);
 		$data['count_mysubmission'] = count($this->home_model->getMySubmissionList());
 		$data['count_approval_ec'] = count($this->inbox_model->get_my_ec_approver());
 		$data['count_approval'] = count($this->inbox_model->getApprovalList());
@@ -694,6 +695,7 @@ class Form extends Admin_Controller
 	public function getQuestion($code_type,$id)
 	{
 		$form_type = $this->m_global->find('exit_clearance_form_types', 'code', $code_type)->row_array();
+		
 		if (empty($form_type)) {
 			return $this->output
 				->set_content_type('application/json')
@@ -708,6 +710,7 @@ class Form extends Admin_Controller
 			'id_exit_clearance' => $data['header']['id'],
 			'id_form_type' => $form_type['id'],
 		]);
+		
 		switch ($form_type['code']) {
 			case 'EC':
 				$section = $this->m_global->find('exit_clearance_section_forms', 'id_form_type', $form_type['id'])->result_array();
@@ -757,8 +760,9 @@ class Form extends Admin_Controller
 				}
 				foreach ($save_section as $ss) {
 					$section_id = $ss['id_section'];
+					$status = $ss['is_saved'];
 					if (isset($data['form'][$section_id])) {
-						$data['form'][$section_id]['saved'] = true;
+						$data['form'][$section_id]['saved'] = (int)$status === 1 ? true : false;
 					}
 				}
 				foreach($notes as $n){
@@ -825,7 +829,11 @@ class Form extends Admin_Controller
 				$option_id = array_column($option, 'id');
 				$option_translations = $this->form_model->getOptionTranslation($option_id);
 				$question_map = [];
-				$answers = $this->m_global->find('exit_clearance_answers', 'id_form', $data['form_exit']['id'])->result_array();
+				if(!empty($data['form_exit'])){
+					$answers = $this->m_global->find('exit_clearance_answers', 'id_form', $data['form_exit']['id'])->result_array();
+				}else{
+					$answers = [];
+				}
 				
 				foreach ($question as $q) {
 					$q['options'] = [];
@@ -962,6 +970,13 @@ class Form extends Admin_Controller
 		}
 		$id_pics = [];
 		if(!empty($pic)){
+			$id_eh = $this->m_global->find('exit_clearance_form_types', 'code', 'EH')->row()->id;
+			$handover_form = [
+				'id_exit_clearance' => $exit_form['id_exit_clearance'],
+				'id_form_type' => $id_eh,
+				'status' => 0,
+				'created_at' => date('Y-m-d H:i:s'),
+			];
 			$data_handover = [
 				'id_form' => $exit_form['id'],
 				'status' => 1,
@@ -997,7 +1012,7 @@ class Form extends Admin_Controller
 			'note' => $note,
 			'created_at' => date('Y-m-d H:i:s'),
 		];
-		$save = $this->form_model->saveDataSection($data, $ans ?? [], $pic_data ?? [], $data_handover ?? [], $data_note ?? [], $id_exit);
+		$save = $this->form_model->saveDataSection($data, $ans ?? [], $pic_data ?? [], $data_handover ?? [], $data_note ?? [], $id_exit,null, $handover_form ?? []);
 		if($save === false){
 			return $this->output
 				->set_content_type('application/json')
@@ -1015,6 +1030,29 @@ class Form extends Admin_Controller
 				'message' => 'Section data saved successfully.',
 			]));
 
+	}
+	public function editSection()
+	{
+		$section_id = $this->input->post('section_id');
+		$id_exit_form = $this->input->post('id_form_exit');
+		$status = $this->input->post('status');
+		$edit = $this->form_model->editSection($id_exit_form, $section_id, $status);
+		if($edit === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to edit section data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Section data edited successfully.',
+			]));
 	}
 	public function saveInterview()
 	{
@@ -1302,10 +1340,30 @@ class Form extends Admin_Controller
 	}
 	public function home_exit_clearance($id)
 	{
-		$data = $this->getHeaderInfo($id);
+		$data = $this->getHeaderInfo($id,"Exit Clearance");
 		$id_encode = encode_url($data['form_request']['id']);
 		$form_exit = $this->m_global->find('form_exit_clearance','id_exit_clearance',$data['header']['id'])->result_array();
 		$formtype = $this->m_global->find('exit_clearance_form_types')->result_array();
+		$ec_type = $formtype[array_search('EC', array_column($formtype, 'code'))];
+		$EC_form = $this->m_global->getRow('*', 'form_exit_clearance', [
+			'id_exit_clearance' => $data['header']['id'],
+			'id_form_type' => $ec_type['id'],
+		]);
+		$handovers = $this->m_global->find('exit_clearance_handovers', 'id_form', $EC_form['id'])->row_array();
+		$select_pic = $this->form_model->getEmployeeAssign($handovers['id'], 0);
+		$select_length = count($select_pic);
+		$is_empty_select = (int)$select_length === 0 || empty($select_pic);
+		// dumper($is_empty_select);
+		if(!$is_empty_select){
+			$ids = array_column($formtype, 'id');
+		}else{
+			$type_not_with_eh = array_filter($formtype, function ($type) {
+				return $type['code'] !== 'EH';
+			});
+			$ids = array_column($type_not_with_eh, 'id');
+		}
+		$status = $this->form_model->checkStatusExitForm($data['header']['id'], $ids);
+		$data['can_submit'] = $status === 1  ? true : false;
 		usort($formtype, function ($first, $second) {
 			return (int) $first['id'] <=> (int) $second['id'];
 		});
@@ -1313,32 +1371,32 @@ class Form extends Admin_Controller
 		{
 			$exit_form[$exit['id_form_type']] = $exit;
 		}
-		
-		$previous_saved = true;
 		foreach($formtype as $type)
 		{
 			$id_form_type = $type['id'];
 			$data['form_steps'][$id_form_type]['id'] = $type['id'];
 			$data['form_steps'][$id_form_type]['title'] = $type['name'];
 			$data['form_steps'][$id_form_type]['status'] = $exit_form[$id_form_type]['status'] ?? 0;
-			$data['form_steps'][$id_form_type]['can_access'] = $previous_saved;
-			$previous_saved = (int) $data['form_steps'][$id_form_type]['status'] === 1;
 			
 			switch ($type['code']) {
 				case 'EC':
 					$data['form_steps'][$id_form_type]['url'] = base_url("form/getQuestion/EC/{$id_encode}");
+					$data['form_steps'][$id_form_type]['can_access'] = true;
 					break;
 				case 'EI':
 					$data['form_steps'][$id_form_type]['url'] = base_url("form/getQuestion/EI/{$id_encode}");
+					$data['form_steps'][$id_form_type]['can_access'] = true;
 					break;
 				case 'EH':
 					$data['form_steps'][$id_form_type]['url'] = base_url("form/handoverHome/{$id_encode}");
+					$data['form_steps'][$id_form_type]['can_access'] = $is_empty_select ? false : true;
 					break;
 				default:
 					$data['form_steps'][$id_form_type]['url'] = base_url("form/home_exit_clearance/{$id_encode}");
 					break;
 			}
 		}
+		// dumper($data['form_steps']);
 		$data['main'] = 'form/exit_clearance/exit_clearance_home';
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
 
@@ -1503,6 +1561,28 @@ class Form extends Admin_Controller
 			->set_output(json_encode([
 				'status' => true,
 				'message' => 'Exit clearance form saved successfully.',
+			]));
+	}
+	public function updateExitClearanceStatus()
+	{
+		$id_exit_clearance = $this->input->post('id_exit_clearance');
+		$status = $this->input->post('status');
+		$update = $this->form_model->updateExitClearanceStatus($id_exit_clearance, $status);
+		if($update === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to update exit clearance status.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Exit clearance status updated successfully.',
 			]));
 	}
 	public function detail_full_approve($formType, $id)

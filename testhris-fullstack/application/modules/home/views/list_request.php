@@ -106,7 +106,46 @@
             </div>
              <!-- /////////////////////////////////// START EXIT CLEARANCE 2024//////////////////////////////////////////// -->
             <div class="tab-pane" id="submission_ec">
-                <?php foreach ($header_ec as $key => $value) { 
+                <div class="card-inner" style="padding: 0px;">
+                    <div class="scroll">
+                        <table class="table table-striped" id="list_approval_tm_cek">
+                            <thead>
+                                <tr>
+                                    <th style='width: 10%'>Action</th>
+                                    <th style='width: 20%'>Created Date</th>
+                                    <th style='width: 20%'>Request Number</th>
+                                    <th style='width: 20%'>Status Resignation</th>
+                                    <th style='width: 20%; text-align: center;'>Status Exit Clearance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php
+                                foreach($header_ec as $key => $value){
+                                $url1 = base_url('form/detail/'.$value["form_type"].'/'.encode_url($value["id"]));
+                                $url2 = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                
+                                //////////////////////
+                                echo"
+                                <tr class='SearchMDCR'>
+                                <td>" . (
+                                    (int) $value['rl_status'] === 0
+                                        ? '<a onclick="return delete_draft(this.id);" id="' . $value['id'] . '" class="btn btn-sm btn-icon btn-trigger" data-toggle="tooltip" data-placement="top" title="" data-original-title="Delete"><em class="icon ni ni-trash"></em></a>'
+                                        : ''
+                                ) . "</td>
+                                <td>".$value['created_at']."</td>
+                                <td>".$value['request_number']."</td>";
+                                echo"
+                                <td><a href='".$url1."'>".status_color($value['rl_status'])."</a></td>
+                                <td style='text-align: center;'><a href='".$url2."'>".((int)$value['current_step'] >= 3 ? status_color($value['ec_status']) : "")."</a></td>
+                                </label>
+                                </tr>";
+                                }
+                                ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- <?php foreach ($header_ec as $key => $value) { 
                     switch ((int) $value["current_step"]){
                         case 1:
                             $url = base_url('form/detail/'.$value["form_type"].'/'.encode_url($value["id"]));
@@ -168,7 +207,7 @@
                     </div>
                 </div>
                 
-                <?php } ?>
+                <?php } ?> -->
             </div>
              <!-- /////////////////////////////////// START TIME MANAGEMENT 2024//////////////////////////////////////////// -->
              <div class="tab-pane" id="submission_tm">

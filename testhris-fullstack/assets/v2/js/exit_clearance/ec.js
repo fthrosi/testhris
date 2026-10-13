@@ -27,7 +27,7 @@ $('#resignation_date').on('changeDate', function(e) {
 });
 $(document).on('click', '#cancel_btn_edit', function() {
     var is_user = $('#is_user').val() === '1';
-     if (!is_user) {
+    if (!is_user) {
         window.location.href = base_url + 'inbox/approval_resignation_letter';
     } else {
         window.location.href = base_url + 'home/request';
@@ -78,6 +78,9 @@ $(document).on('click', '#cancel_btn', function() {
     });
 });
 
+$(document).on('click', '#back_btn_user', function() {
+        window.location.href = base_url + 'home/request';
+});
 var generatedResignationDate = '';
 
 function updateGenerateButton() {
@@ -573,8 +576,8 @@ $('#approve_btn').on('click', function(e) {
 });
 $('#add_note').on('click', function(e) {
     e.preventDefault();
-
-    var id = $('#request_id').val();
+    var type = $(this).data('type');
+    var id = $(this).data('id');
 
     Swal.fire({
         title: 'Note',
@@ -602,6 +605,7 @@ $('#add_note').on('click', function(e) {
                 url: base_url + 'inbox/addNote',
                 type: 'POST',
                 data: {
+                    type: type,
                     id: id,
                     notes: notes,
                 },

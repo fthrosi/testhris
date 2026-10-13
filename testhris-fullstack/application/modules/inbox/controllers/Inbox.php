@@ -194,7 +194,8 @@ class Inbox extends Admin_Controller
 	{
 		$id = $this->input->post('id');
 		$notes = $this->input->post('notes');
-		$add = $this->inbox_model->addNote($id, "Resignation Letter", $notes);
+		$type = $this->input->post('type');
+		$add = $this->inbox_model->addNote($id, $type, $notes);
 		if($add === false){
 			$response = [
 				'status' => false,

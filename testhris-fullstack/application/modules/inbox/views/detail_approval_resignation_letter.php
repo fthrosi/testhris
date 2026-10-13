@@ -47,8 +47,11 @@
                     <td width="25%"><?=$value['email'];?></td>
                     <td><?=approval_status($value['status']);?></td>
                     <td class="text-left">
-                        <?= str_replace('.000','', $value['acted_at']);?>
+                        <?php if($value['status'] !== "In Progress"): ?>
+                            <?= str_replace('.000','', $value['acted_at']);?>
+                        <?php endif; ?>
                     </td>
+                    
                 </tr>
                 <?php } ?>
             </tbody>
@@ -81,7 +84,7 @@
                         <div class="nk-reply-entry entry">
                         <div class="nk-block">
                                 <div class="nk-block-head nk-block-head-sm nk-block-between">
-                                <a id="add_note" class="btn btn-md text-primary">+ Add Note</a>
+                                <a id="add_note" data-id="<?= $header['id_form_request'] ?>" data-type="Resignation Letter" class="btn btn-md text-primary">+ Add Note</a>
                                 </div>
                                 <?php foreach ($reason as $key => $value) { ?>
                                 <div class="bq-note">

@@ -259,8 +259,11 @@ $(document).on('click', '.btn-delete-handover', function () {
     });
 });
 $(document).on('click', '#submit-btn-handover', function () {
-    const isSelectEmpty = $('#is_select_empty').val() === 'true';
-    if(!isSelectEmpty) {
+    const select_length = parseInt($('#select_length').val());
+    const pic_length = parseInt($('#pic_length').val());
+    const isSelectEmpty = select_length === 0 || isNaN(select_length) ? true : false;
+    const isPicEmpty = pic_length === 0 || isNaN(pic_length) ? true : false;
+    if(!isSelectEmpty && isPicEmpty) {
         Swal.fire({
             icon: 'error',
             title: 'Failed',
@@ -270,6 +273,7 @@ $(document).on('click', '#submit-btn-handover', function () {
         });
         return;
     }
+    
     const idFormRequest = $('#id_form_request').val();
     const id_form_handover = $(this).data('id');
     $.ajax({

@@ -85,10 +85,12 @@
                                             
                                             </div>
                                         <?php endif; ?>
-                                        <div class="input-with-label">
-                                            <label style="margin: 0;" for="jumlah-<?= $question['id']; ?>">Quantity</label>
-                                            <input value="<?= html_escape($jumlah); ?>" <?= $saved ? 'readonly' : '' ?> <?= ($question['question_type'] === 'checkbox' && !$answer) ? 'disabled' : '' ?> onwheel="this.blur()" type="number" min="0" data-parent-id="<?= $question['id'] ?? ''; ?>" id="jumlah-<?= $question['id']; ?>" name="jumlah[<?= $question['id']; ?>]">
-                                        </div>
+                                        <?php if((int)$question['id'] !== 15): ?>
+                                            <div class="input-with-label">
+                                                <label style="margin: 0;" for="jumlah-<?= $question['id']; ?>">Quantity</label>
+                                                <input value="<?= html_escape($jumlah); ?>" <?= $saved ? 'readonly' : '' ?> <?= ($question['question_type'] === 'checkbox' && !$answer) ? 'disabled' : '' ?> onwheel="this.blur()" type="number" min="0" data-parent-id="<?= $question['id'] ?? ''; ?>" id="jumlah-<?= $question['id']; ?>" name="jumlah[<?= $question['id']; ?>]" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                            </div>
+                                        <?php endif; ?>
                                         <?php foreach ($question['children'] ?? [] as $child): ?>
                                             <?php
                                                 $specialType = ($child['question_type'] ?? '') === 'special' ? true : false;
@@ -187,16 +189,6 @@
                                         </div>
                                     <?php endif; ?>
                                     <div class="wraper-btn-save">
-                                        <?php if($section['saved']): ?>
-                                            <button
-                                            type="button"
-                                            id="cancel-<?= $section['id']; ?>"
-                                            class="btn btn-cancel-section btn-danger unsave"
-                                            data-section-id="<?= $section['id']; ?>"
-                                            >
-                                                Cancel
-                                            </button>
-                                        <?php endif; ?>
                                         <button
                                             type="button"
                                             class="btn btn-success <?= $class; ?>"
@@ -212,7 +204,9 @@
 
                     <?php endforeach; ?>
                     <div class="wrap-btn-submit">
-                        <button style="<?= (int)$form_exit['status'] === 0 ? '' : 'display:none;' ?>" type="submit" id="submit-btn" class="btn btn-success">Submit</button>
+                        <?php if((int)$header['status'] === 0): ?>
+                            <button style="<?= (int)$form_exit['status'] === 0 ? '' : 'display:none;' ?>" type="submit" id="submit-btn" class="btn btn-success">Submit</button>
+                        <?php endif; ?>
                         <button type="button" id="back-btn" class="btn btn-danger">Back</button>
                     </div>
             </form>

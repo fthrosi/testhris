@@ -6151,7 +6151,7 @@ class Form_model extends CI_Model {
 		$this->db->order_by('nik', 'ASC');
 		return $this->db->get()->result_array();
 	}
-	public function saveDataSection($data = [], $answers = [],$pic = [] , $handover = [], $note = [],$id_exit_form = null, $typeForm = null)
+	public function saveDataSection($data = [], $answers = [],$pic = [] , $handover = [], $note = [],$id_exit_form = null, $typeForm = null, $handover_form = [])
 	{
 		$this->db->trans_begin();
 		$exists = $this->db->get_where('exit_clearance_note_sections', ['id_section' => $note['id_section'], 'id_employee' => $note['id_employee']])->row_array();
@@ -6273,6 +6273,10 @@ class Form_model extends CI_Model {
 							$value['id_handover'] = $id_handover;
 						}
 						$this->db->insert_batch('exit_clearance_pic_handovers', $pic);
+						$h_form = $this->db->get_where('form_exit_clearance', ['id_exit_clearance' => $handover_form['id_exit_clearance'], 'id_form_type' => $handover_form['id_form_type']])->row_array();
+						if(empty($h_form)){
+							$this->db->insert('form_exit_clearance', $handover_form);
+						}
 					}
 					if($this->db->trans_status() === FALSE) {
 						$this->db->trans_rollback();
@@ -6280,6 +6284,7 @@ class Form_model extends CI_Model {
 					}
 				}
 			}
+			$this->db->update('exit_clearance_form_sections', ['is_saved' => 1, 'updated_at' => date('Y-m-d H:i:s')], ['id_exit_form' => $data['id_exit_form'], 'id_section' => $data['id_section']]);
 		}
 		if($id_exit_form !== null && $typeForm !== 'Exit Interview'){
 			$this->db->where('id', $id_exit_form);
@@ -6301,7 +6306,51 @@ class Form_model extends CI_Model {
 		$this->db->trans_commit();
 		return true;
 	}
-
+	public function editSection($id_exit_form, $id_section, $status)
+	{
+		$this->db->trans_begin();
+		$this->db->where('id_exit_form', $id_exit_form);
+		$this->db->where('id_section', $id_section);
+		$this->db->update('exit_clearance_form_sections', ['is_saved' => $status, 'updated_at' => date('Y-m-d H:i:s')]);
+		if($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return false;
+		}
+		$exit_form = $this->db->get_where('form_exit_clearance', ['id' => $id_exit_form])->row_array();
+		$id_ec_eh_form = $this->db->select('id, code')->where_in('code',  ['EC', 'EH'])->get('exit_clearance_form_types')->result_array();
+		$ids = array_column($id_ec_eh_form, 'id', 'code');
+		$id_ec = $ids['EC'] ?? null;
+		$id_eh = $ids['EH'] ?? null;
+		if((int)$id_section === 1){
+			$this->db->update('form_exit_clearance', ['status' => 0, 'updated_at' => date('Y-m-d H:i:s')], ['id_exit_clearance' => $exit_form['id_exit_clearance'], 'id_form_type' => $id_eh]);
+			if($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		$this->db->update('form_exit_clearance', ['status' => 0, 'updated_at' => date('Y-m-d H:i:s')], ['id_exit_clearance' => $exit_form['id_exit_clearance'], 'id_form_type' => $id_ec]);
+		if($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return false;
+		}
+		$this->db->trans_commit();
+		return true;
+	}
+	public function checkStatusExitForm($id_ec, $id_type)
+	{
+		$this->db->select('status');
+		$this->db->from('form_exit_clearance');
+		$this->db->where('id_exit_clearance', $id_ec);
+		$this->db->where_in('id_form_type', $id_type);
+		$data =  $this->db->get()->result_array();
+		$status_not_saved = array_filter($data, function($item){
+			return (int)$item['status'] === 0;
+		});
+		if(!empty($status_not_saved)){
+			return 0;
+		}
+		return 1;
+	}
 	public function editInterview($idForm)
 	{
 		$this->db->trans_begin();
@@ -6453,6 +6502,24 @@ class Form_model extends CI_Model {
 		$this->db->from('ec_option_translation');
 		$this->db->where_in('id_option', $id_option);
 		return $this->db->get()->result_array();
+	}
+	public function updateExitClearanceStatus($id, $status)
+	{
+		$this->db->trans_begin();
+		$this->db->where('id', $id);
+		$exit_form = $this->db->get('exit_clearance')->row_array();
+		if(!$exit_form){
+			$this->db->trans_rollback();
+			return false;
+		}
+		$kolom = $exit_form['submitted_at'] === null ? 'submitted_at' : 'updated_at';
+		$this->db->update('exit_clearance', ['status' => $status , $kolom => date('Y-m-d H:i:s')], ['id' => $exit_form['id']]);
+		if($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return false;
+		}
+		$this->db->trans_commit();
+		return true;
 	}
 
 }

@@ -93,8 +93,8 @@
                                     <th style='width: 15%'>Employee ID</th>
                                     <th style='width: 25%'>Complete Name</th>
                                     <th style='width: 20%'>Request Number</th>
-                                    <th style='width: 20%'>Status Request</th>
-                                    <th style='width: 20%'>Status Step</th>
+                                    <th style='width: 20%'>Status Resignation</th>
+                                    <th style='width: 20%'>Status Exit Clearance</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -127,8 +127,8 @@
                                     <th style='width: 15%'>Employee ID</th>
                                     <th style='width: 25%'>Complete Name</th>
                                     <th style='width: 20%'>Request Number</th>
-                                    <th style='width: 20%'>Status Request</th>
-                                    <th style='width: 20%'>Status Step</th>
+                                    <th style='width: 20%'>Status Resignation</th>
+                                    <th style='width: 20%'>Status Exit Clearance</th>
                                 </tr>
                             </thead>
                             <tbody>

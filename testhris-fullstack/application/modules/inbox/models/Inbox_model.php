@@ -105,17 +105,29 @@ class Inbox_model extends CI_Model {
 			}
 		}else{
 			$exit = $this->db->get_where('exit_clearance',['id_form_request' => $id])->row_array();
+			$type = $this->db->select('id,code')->where_in('code', ['EC','EI'])->get('exit_clearance_form_types')->result_array();
+			$ids = array_column($type, 'id', 'code');
+			$id_ec = $ids['EC'] ?? null;
+			$id_ei = $ids['EI'] ?? null;
 			if(empty($exit)){
 				$this->db->trans_rollback();
 				return false;
 			}
 			$data = [
-				'id_exit_clearance' => $exit['id'],
-				'id_form_type' => 1,
-				'status' => 0,
-				'created_at' => $this->date,
+				[
+					'id_exit_clearance' => $exit['id'],
+					'id_form_type' => $id_ec,
+					'status' => 0,
+					'created_at' => $this->date,
+				],
+				[
+					'id_exit_clearance' => $exit['id'],
+					'id_form_type' => $id_ei,
+					'status' => 0,
+					'created_at' => $this->date,
+				]
 			];
-			$this->db->insert('form_exit_clearance', $data);
+			$this->db->insert_batch('form_exit_clearance', $data);
 			if($this->db->trans_status() === FALSE){
 				$this->db->trans_rollback();
 				return false;

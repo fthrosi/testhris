@@ -8,11 +8,12 @@
     $canEdit = isset($form_handover['status']) && (int)$form_handover['status'] === 0;
     $save = isset($form_handover['status']) && (int)$form_handover['status'] === 1;
     $select_length = count($select_pic);
-    $is_select_empty = $select_length === null || $select_length === 0;
+    $pic_length = count($pic);
 ?>
-<input type="hidden" id="is_select_empty" value="<?= $is_select_empty ?>">
+<input type="hidden" id="select_length" value="<?= $select_length ?>">
 <input type="hidden" id="id_form_request" value="<?= $id ?? ''; ?>">
 <input type="hidden" id="id_handover" value="<?= $handover['id'] ?? ''; ?>">
+<input type="hidden" id="pic_length" value="<?= $pic_length ?>">
 
 <div class="wrap-submit-rl">
     <div class="title-section-resign">
@@ -146,7 +147,9 @@
             </table>
         </div>
         <div class="wrap-btn-submit">
-            <button type="<?= $save ? 'button' : 'submit' ?>" id="<?= $save ? 'update-handover' : 'submit-btn-handover' ?>" data-id="<?= $form_handover['id'] ?>" class="btn btn-success"><?= $save ? 'Edit' : 'Submit' ?></button>
+            <?php if((int)$header['status'] === 0): ?>
+                <button type="button" id="<?= $save ? 'update-handover' : 'submit-btn-handover' ?>" data-id="<?= $form_handover['id'] ?>" class="btn btn-success"><?= $save ? 'Edit' : 'Submit' ?></button>
+            <?php endif; ?>
            <button type="button" id="back-btn" class="btn btn-danger">Back</button> 
         </div>
     </div>
@@ -206,6 +209,7 @@
                             <input
                                 id="quantity"
                                 type="number"
+                                oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                                 onwheel="this.blur()"
                                 placeholder="Enter Quantity"
                                 name="quantity"

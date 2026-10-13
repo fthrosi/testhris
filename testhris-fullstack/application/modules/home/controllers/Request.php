@@ -58,6 +58,7 @@ class Request extends Admin_Controller
 
 		$data['header_ec'] = $this->home_model->getMyRequestEC();
 		
+		
 		foreach ($data['header_ec'] as &$row) {
 
 			$rlStatus = (int) $row['rl_status'];
@@ -68,25 +69,21 @@ class Request extends Admin_Controller
 				switch ($rlStatus) {
 					case 0:
 						$row['current_step'] = 1;
-						$row['status'] = 0;
 						break;
 
 					case 1:
 						$row['current_step'] = 2;
-						$row['status'] = 1;
 						break;
 
 					case 2:
 						$row['current_step'] = 1;
-						$row['status'] = 2;
 						break;
 					case 3:
 						$row['current_step'] = 3;
-						$row['status'] = 3;
 						break;
 					case 4:
 						$row['current_step'] = 1;
-						$row['status'] = 8;
+						$row['rl_status'] = 8;
 						break;
 
 					default:
@@ -97,12 +94,22 @@ class Request extends Admin_Controller
 			} else {
 
 				switch ($ecStatus) {
+					case 0:
+						$row['current_step'] = 3;
+						break;
 					case 1:
 						$row['current_step'] = 4;
 						break;
 
 					case 2:
 						$row['current_step'] = 5;
+						break;
+					case 3:
+						$row['current_step'] = 6;
+						break;
+					case 4:
+						$row['current_step'] = 7;
+						$row['ec_status'] = 8;
 						break;
 
 					default:
@@ -113,7 +120,7 @@ class Request extends Admin_Controller
 		}
 
 		unset($row);
-
+		// dumper($data['header_ec']);
 		$data['content'] = 'home/list_request';
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
 	}
@@ -142,8 +149,8 @@ class Request extends Admin_Controller
 			$data['approval'] = $this->m_global->find('form_approval', 'request_id', $request_id)->result_array();
 			$data['notes']   = $this->m_global->find('request_notes', 'request_id', $request_id)->result_array();
 			$data['count_approval_ec'] = count($this->inbox_model->get_my_ec_approver());
-		$data['count_approval'] = count($this->inbox_model->getApprovalList());
-		$data['count_need_tm_cek'] = count($this->inbox_model->getApprovalListTMCek_ztm());
+			$data['count_approval'] = count($this->inbox_model->getApprovalList());
+			$data['count_need_tm_cek'] = count($this->inbox_model->getApprovalListTMCek_ztm());
 			$data['count_review'] = count($this->inbox_model->getReviewList());
 			$data['count_pa_mgmt'] = count($this->inbox_model->getPAList());
 			$data['formType'] = $this->form_model->getFormType();

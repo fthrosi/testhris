@@ -278,7 +278,9 @@ $(document).on('submit', '#formAccordion', function (e) {
         Swal.fire({
             icon: 'warning',
             title: 'Failed to submit',
-            text: 'Please save all sections before submitting the form. Unsaved sections: ' + unsavedSections.join(', ')
+            text: 'Please save all sections before submitting the form. Unsaved sections: ' + unsavedSections.join(', '),
+            timer: 5000,
+            timerProgressBar: true
         });
 
         return;
@@ -413,6 +415,7 @@ $(document).on('click', '.btn-save-section', function () {
             swal.close();
 
             if (response.status) {
+                section.find('.collapse').collapse('hide');
                 $('#saved-' + sectionId).val('1');
                 $('#cancel-' + sectionId).addClass('unsave');
                 $('#flag-' + sectionId)
@@ -491,39 +494,64 @@ $(document).on('change', '.question-checkbox', function () {
 });
 
 $(document).on('click', '.btn-edit-section', function () {
+    const idFormExit = $('#id_form_exit').val();
     const button = $(this);
     const section = button.closest('.wrap-section');
     const sectionId = section.data('section-id');
-    section.data('original-html', section.html());
-    $('#saved-' + sectionId).val('0');
-    $('#flag-' + sectionId)
-        .removeClass('save')
-        .addClass('unsave')
-    $('#cancel-' + sectionId).removeClass('unsave');
-    section.find(':input[name]')
-        .prop('disabled', false)
-        .prop('readonly', false);
+    button.prop('disabled', true);
+    button.text('waiting...');
+    $.ajax({
+        url: base_url + 'form/editSection',
+        type: 'POST',
+        data: {
+            section_id: sectionId,
+            id_form_exit: idFormExit,
+            status: 0
+        },
+        success: function (response) {
+            if (response.status) {
+                $('#saved-' + sectionId).val('0');
+                $('#flag-' + sectionId)
+                    .removeClass('save')
+                    .addClass('unsave')
+                section.find(':input[name]')
+                    .prop('disabled', false)
+                    .prop('readonly', false);
 
-    section.find('.btn-add-pic').removeClass('disabled');
-    section.find('.pic-remove').removeClass('disabled');
+                section.find('.btn-add-pic').removeClass('disabled');
+                section.find('.pic-remove').removeClass('disabled');
 
-    syncQuestionChildren(section);
+                syncQuestionChildren(section);
 
-    section.find('.pic-assignment').each(function () {
-        const wrapper = $(this);
-        const totalPIC = wrapper.find('.pic-item').length;
+                section.find('.pic-assignment').each(function () {
+                    const wrapper = $(this);
+                    const totalPIC = wrapper.find('.pic-item').length;
 
-        if (totalPIC >= 3) {
-            wrapper.find('.btn-add-pic').hide();
-        } else {
-            wrapper.find('.btn-add-pic').show();
+                    if (totalPIC >= 3) {
+                        wrapper.find('.btn-add-pic').hide();
+                    } else {
+                        wrapper.find('.btn-add-pic').show();
+                    }
+                });
+                button.prop('disabled', false);
+                $('#submit-btn').show();
+                button
+                    .removeClass('btn-edit-section')
+                    .addClass('btn-save-section')
+                    .text('Save');
+            }
+        },
+        error: function (xhr) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: xhr.message || 'Failed to update the status. Please try again later.',
+                timer: 5000,
+                timerProgressBar: true
+            });
         }
     });
-
-    button
-        .removeClass('btn-edit-section')
-        .addClass('btn-save-section')
-        .text('Save');
+    
 });
 $(document).on('click', '.btn-cancel-section', function () {
     const button = $(this);
@@ -545,6 +573,67 @@ $(document).on('click', '#cantAccess', function () {
     Swal.fire({
         icon: 'warning',
         title: 'Access Denied',
-        text: 'You cannot open this section because the previous section has not been completed yet. Please complete the previous section first.'
+        text: 'Prerequisite: Please complete the PIC assignment for the handover in the Exit Clearance Form before proceeding.'
+    });
+});
+$(document).on('click', '#submit-all-ec', function () {
+    const id  = $(this).data('id');
+    const canSubmit = $('#can_submit').val() === '1';
+    if (!canSubmit) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Cannot Submit',
+            text: 'You cannot submit the form because not all required sections have been completed. Please complete all required sections before submitting.',
+            timer: 5000,
+            timerProgressBar: true
+        });
+        return;
+    }
+    $.ajax({
+        url: base_url + 'form/updateExitClearanceStatus',
+        type: 'POST',
+        data: {
+            id_exit_clearance: id,
+            status: 1
+        },
+        beforeSend: function () {
+            Swal.fire({
+                title: 'Saving data...',
+                allowOutsideClick: false,
+                onOpen: function () {
+                    Swal.showLoading();
+                }
+            });
+
+        },
+        success: function (response) {
+            if (response.status) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: response.message,
+                    timer: 5000,
+                    timerProgressBar: true
+                }).then(() => {
+                    //reload this page
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: response.message
+                });
+            }
+        },
+        error: function (xhr) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: xhr.message || 'Failed to update the status. Please try again later.',
+                timer: 5000,
+                timerProgressBar: true
+            });
+        }
     });
 });

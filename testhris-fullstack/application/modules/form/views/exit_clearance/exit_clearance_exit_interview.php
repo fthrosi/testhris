@@ -127,7 +127,9 @@
                     
                 <?php endforeach; ?>
                 <div class="wrap-btn-submit">
-                    <button type="<?= $save ? 'button' : 'submit' ?>" id="<?= $save ? 'update-interview' : 'submit-btn-interview' ?>" data-id="<?= $form_exit['id'] ?>" class="btn btn-success"><?= $save ? 'Edit' : 'Submit' ?></button>
+                    <?php if((int)$header['status'] === 0): ?>
+                        <button type="<?= $save ? 'button' : 'submit' ?>" id="<?= $save ? 'update-interview' : 'submit-btn-interview' ?>" data-id="<?= $form_exit['id'] ?>" class="btn btn-success"><?= $save ? 'Edit' : 'Submit' ?></button>
+                    <?php endif; ?>
                     <button type="button" id="back-btn" class="btn btn-danger">Back</button> 
                 </div>
             </form>
