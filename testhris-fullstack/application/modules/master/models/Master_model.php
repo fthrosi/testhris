@@ -3369,5 +3369,17 @@ class Master_model extends CI_Model {
 			return true;
 		}
 	}
+	public function addNoticePeriod($data)
+	{
+		$this->db->trans_begin();
+		$this->db->insert('exit_clearance_notice_periods', $data);
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return false;
+		} else {
+			$this->db->trans_commit();
+			return true;
+		}
+	}
 
 }

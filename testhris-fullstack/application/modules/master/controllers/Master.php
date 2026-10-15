@@ -125,6 +125,19 @@ class Master extends Admin_Controller
 		$data['content'] = 'master/question_exit_clearance';
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
 	}
+	public function notice_period()
+	{
+		$data['count_mysubmission'] = count($this->home_model->getMySubmissionList());
+		$data['count_approval'] = count($this->inbox_model->getApprovalList());
+		$data['count_need_mdcr_cek'] = count($this->inbox_model->getApprovalListMDCRCek());
+		$data['count_need_mdcr_after_cek'] = count($this->inbox_model->getApprovalListMDCRAfterCek());
+		$data['count_mdcr_after_grouping_need_approved'] = count($this->inbox_model->getReqMDCRAfterGroupingNeedApproved());
+		$data['count_review'] = count($this->inbox_model->getReviewList());
+		$data['count_pa_mgmt'] = count($this->inbox_model->getPAList());
+		$data['formType'] = $this->form_model->getFormType();
+		$data['content'] = 'master/notice_period';
+		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
+	}
 
 	public function medical_plafon()
 	{
@@ -993,6 +1006,44 @@ class Master extends Admin_Controller
 						$row[] = (int)$key['status'] === 1 ? 'Active' : 'Inactive';
 						$row[] = '<div class="btn-group btn-group-sm">
 										<a class="text-primary btn btn-icon btn-trigger btn-edit-option" data-option="' . $optionJson . '">
+										<em class="icon ni ni-edit"></em>
+										</a>
+								</div>
+								';
+		                $data[] = $row;
+		            }
+		            $output = array('data' => $data);
+		        } else {
+		            $output = array('data' => new ArrayObject());
+		        }
+		        // dumper($output);
+		        echo json_encode($output);
+				break;
+			case 'notice_period':
+				$listNP = $this->m_global->find('exit_clearance_notice_periods')->result_array();
+				if (!empty($listNP)) {
+					foreach ($listNP as $key) {
+						$npData = [
+							'id' => $key['id'],
+							'grade' => $key['grade'],
+							'month' => $key['month'],
+							'start_date' => $key['start_date'],
+							'end_date' => $key['end_date'],
+						];
+
+						$npJson = htmlspecialchars(
+							json_encode($npData),
+							ENT_QUOTES,
+							'UTF-8'
+						);
+						$row   = array();
+						$row[] = $key['grade'];
+						$row[] = $key['month'];
+						$row[] = $key['start_date'];
+						$row[] = $key['end_date'];
+						$row[] = $key['start_date'] <= date('Y-m-d') && $key['end_date'] >= date('Y-m-d') ? 'Active' : 'Inactive';
+						$row[] = '<div class="btn-group btn-group-sm">
+										<a class="text-primary btn btn-icon btn-trigger btn-edit-np" data-np="' . $npJson . '">
 										<em class="icon ni ni-edit"></em>
 										</a>
 								</div>
@@ -2476,7 +2527,7 @@ class Master extends Admin_Controller
 				->set_status_header(500)
 				->set_output(json_encode([
 					'status' => false,
-					'message' => 'Failed to save question data.',
+					'message' => 'Failed to save option data.',
 				]));
 		}
 		return $this->output
@@ -2484,7 +2535,7 @@ class Master extends Admin_Controller
 			->set_status_header(200)
 			->set_output(json_encode([
 				'status' => true,
-				'message' => 'Question data saved successfully.',
+				'message' => 'Option data saved successfully.',
 			]));
 
 	}
@@ -2545,7 +2596,7 @@ class Master extends Admin_Controller
 				->set_status_header(500)
 				->set_output(json_encode([
 					'status' => false,
-					'message' => 'Failed to save question data.',
+					'message' => 'Failed to save option data.',
 				]));
 		}
 		return $this->output
@@ -2553,7 +2604,67 @@ class Master extends Admin_Controller
 			->set_status_header(200)
 			->set_output(json_encode([
 				'status' => true,
-				'message' => 'Question data saved successfully.',
+				'message' => 'Option data saved successfully.',
+			]));
+	}
+	public function addNoticePeriod(){
+		$answers = $this->input->post();
+		$start_date = date('Y-m-d', strtotime($answers['start_date_period']));
+		$end_date = !empty($answers['end_date_period']) ? date('Y-m-d', strtotime($answers['end_date_period'])) : "9999-12-31";
+		$data = [
+			'grade' => $answers['grade'],
+			'month' => $answers['month'],
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'created_at' => date('Y-m-d H:i:s'),
+		];
+		$add = $this->master_model->addNoticePeriod($data);
+		if($add === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save notice period data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Notice period data saved successfully.',
+			]));
+
+	}
+	public function editNoticePeriod(){
+		$answers = $this->input->post();
+		$start_date = date('Y-m-d', strtotime($answers['start_date_period']));
+		$end_date = !empty($answers['end_date_period']) ? date('Y-m-d', strtotime($answers['end_date_period'])) : "9999-12-31";
+		$data = [
+			'id' => $answers['notice_id'],
+			'grade' => $answers['grade'],
+			'month' => $answers['month'],
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'update_at' => date('Y-m-d H:i:s'),
+		];
+		$update = $this->master_model->updateEC($data, 'exit_clearance_notice_periods');
+		if($update === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save notice period data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Notice period data saved successfully.',
 			]));
 	}
 }

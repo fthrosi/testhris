@@ -10817,6 +10817,78 @@ $(document).ready(function () {
         });
     },
   });
+  var table = $('.period-table').DataTable({
+    ajax: 'master/read/notice_period/',
+    //scrollY: '100%',
+    scrollX: true,
+    ordering: true,
+    searching: true,
+    dom:
+      "<'row'<'col-sm-6'B><'col-sm-5 text-right'f>>" +
+      "<'row'<'col-sm-12'tr>>" +
+      "<'row'<'col-sm-4 text-left'l>>" +
+      "<'row'<'col-sm-8 text-right'p>>" +
+      "<'row'<'col-sm-2'i>>",
+    buttons: [
+      {
+        extend: 'copy',
+        text: 'Copy to clipboard'
+      },
+      'excel',
+      'csv',
+      // 'pdf',
+      'colvis'
+    ],
+    autoWidth: true,
+    pagingType: 'full_numbers',
+    orderCellsTop: true,
+    fixedHeader: true,
+    initComplete: function () {
+      var api = this.api();
+
+      api
+        .columns()
+        .eq(0)
+        .each(function (colIdx) {
+          var cell = $('.filters th').eq(
+            $(api.column(colIdx).header()).index()
+          );
+          var title = $(cell).text();
+          $(cell).html('<input type="text" placeholder="' + title + '" />');
+
+          $(
+            'input',
+            $('.filters th').eq($(api.column(colIdx).header()).index())
+          )
+            .off('keyup change')
+            .on('change', function (e) {
+              // Get the search value
+              $(this).attr('title', $(this).val());
+              var regexr = '({search})';
+
+              var cursorPosition = this.selectionStart;
+              api
+                .column(colIdx)
+                .search(
+                  this.value != ''
+                    ? regexr.replace('{search}', '(((' + this.value + ')))')
+                    : '',
+                  this.value != '',
+                  this.value == ''
+                )
+                .draw();
+            })
+            .on('keyup', function (e) {
+              e.stopPropagation();
+
+              $(this).trigger('change');
+              $(this)
+                .focus()[0]
+                .setSelectionRange(cursorPosition, cursorPosition);
+            });
+        });
+    },
+  });
 
   $('.tableDashboardX thead tr')
     .clone(true)
@@ -12972,4 +13044,96 @@ $(document).on('click', '#edit_option', function () {
             });
         }
   });
+});
+$(document).on('click', '#save_notice_period', function () {
+    const form = $('#form_notice_period')[0];
+    const mode = $(form).attr('data-mode');
+    if(mode !== 'add' && mode !== 'edit') {
+        Swal.fire({
+            icon: 'error',
+            title: 'Invalid Mode',
+            text: 'The form mode is not set correctly. Please refresh the page and try again.',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const formData = new FormData(form);
+    const NPId = $('#edit_notice_id').val();
+    if(mode === 'edit') {
+        formData.append('notice_id', NPId);
+    }
+    $.ajax({
+        url: base_url + (mode === 'add' ? 'master/addNoticePeriod' : 'master/editNoticePeriod'),
+        type: 'POST',
+        dataType: 'json',
+        data: formData,
+        processData: false,
+        contentType: false,
+
+        beforeSend: function () {
+
+            Swal.fire({
+                title: mode === 'add' ? 'Saving Data...' : 'Update Data...',
+                allowOutsideClick: false,
+                onOpen: function () {
+                    Swal.showLoading();
+                }
+            });
+
+        },
+
+        success: function (response) {
+            swal.fire({
+                icon: response.status ? 'success' : 'error',
+                title: response.status ? 'Success' : 'Failed',
+                text: response.message,
+                timer: 5000,
+                timerProgressBar: true,
+                
+            }).then(() => {
+                location.reload();
+            });
+            
+        },
+        error: function (xhr) {
+            swal.close();
+            swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: 'Failed to submit the form. Please try again later.',
+                timer: 5000,
+                timerProgressBar: true
+            });
+        }
+    });
+
+
+});
+
+$(document).on('click', '.btn-edit-np', function () {
+    const modal = $('#modalNoticePeriod');
+    const form = $('#form_notice_period');
+    modal.find('.title').text('Edit Notice Period');
+    form.attr('data-mode', 'edit');
+    modal.find('#save_notice_period').text('Update');
+    const np = JSON.parse($(this).attr('data-np'));
+    console.log(np);
+    //change format to mm/dd/yyyy
+    const start_date = new Date(np.start_date);
+    const end_date = new Date(np.end_date);
+    const formatted_start_date = (start_date.getMonth() + 1) + '/' + start_date.getDate() + '/' + start_date.getFullYear();
+    const formatted_end_date = (end_date.getMonth() + 1) + '/' + end_date.getDate() + '/' + end_date.getFullYear();
+
+    $('#edit_notice_id').val(np.id);
+    $('#grade_period').val(np.grade);
+    $('#month_period').val(np.month);
+    $('#start_date_period').val(formatted_start_date);
+    $('#end_date_period').val(formatted_end_date);
+   
+    modal.modal('show');
 });
