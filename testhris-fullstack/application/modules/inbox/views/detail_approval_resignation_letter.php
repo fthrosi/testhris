@@ -58,6 +58,20 @@
         </table>
     </div>
     <iframe src="<?= base_url('form/view_resignation_letter/'.$form_request['employee_id'] . '/' . $resignation_letter['file_path'] .'#sidebar=0&zoom=100') ?>" width="100%" height="600px" style="border: none;"></iframe>
+
+     <div class="notes-field">
+            <div class="notes-field-label">
+                    Additional Notes
+            </div>
+
+            <textarea
+                    id="notes"
+                    class="form-control notes-field-input"
+                    placeholder="Enter your notes here(max 255 characters)"
+                    maxlength="255"
+                    <?= $is_submitted || $just_view || !$is_user ? 'readonly' : '' ?>
+            ><?= htmlspecialchars($resignation_letter['notes'], ENT_QUOTES, 'UTF-8') ?></textarea>
+    </div>
     <div id="button-approve-rl" class="button-approve-rl">
         <input type="hidden" id="id_form_request" value="<?= $resignation_letter['id_form_request'] ?>">
         <input type="hidden" id="can_approve" value="<?= $can_approve ?>">

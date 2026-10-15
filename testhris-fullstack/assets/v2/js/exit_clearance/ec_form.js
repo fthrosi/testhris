@@ -1,5 +1,15 @@
-$('.icon-acc').on('click', function () {
-    $(this).toggleClass('icon-acc-open');
+$(document).on('shown.bs.collapse', '.wrap-section .collapse', function () {
+    $(this)
+        .closest('.wrap-section')
+        .find('.icon-acc')
+        .addClass('icon-acc-open');
+});
+
+$(document).on('hidden.bs.collapse', '.wrap-section .collapse', function () {
+    $(this)
+        .closest('.wrap-section')
+        .find('.icon-acc')
+        .removeClass('icon-acc-open');
 });
 let EL = null;
 
@@ -562,12 +572,6 @@ $(document).on('click', '.btn-cancel-section', function () {
 $(document).on('click', '#back-btn', function () {
     const idFormRequest = $('#id_form_request').val();
     window.location.href = base_url + 'form/home_exit_clearance/' + idFormRequest;
-});
-$('.collapse').on('hidden.bs.collapse', function () {
-    $(this)
-        .closest('.wrap-section')
-        .find('.icon-acc')
-        .removeClass('icon-acc-open');
 });
 $(document).on('click', '#cantAccess', function () {
     Swal.fire({

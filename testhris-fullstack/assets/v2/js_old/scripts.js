@@ -3304,6 +3304,7 @@ $(document).ready(function () {
   $('.select-search_couple').select2({
     dropdownParent: $('#modalAddCouple')
   });
+  
 
   $('.select-kuitansi').select2({
     tags: true

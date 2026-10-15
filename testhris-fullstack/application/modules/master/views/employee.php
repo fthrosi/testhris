@@ -79,7 +79,7 @@
                     <tbody>
                     </tbody>
                     <tfoot>
-                    <tr>
+                        <tr>
                             <th>NIK</th>
                             <th>Complete Name</th>
                             <th>Start Date</th>
@@ -132,7 +132,7 @@
                             <th>Director Name</th>
                             <th>Director Email</th>
                         </tr>
-                </tfoot>
+                    </tfoot>
                 </table>
                 <!-- <table class="table employee-table table-responsive table-striped" data-export-title="Export Data" data-filter-control="true" data-ajaxsource="<?= site_url('master/read/employee/'); ?>">
                     <thead>

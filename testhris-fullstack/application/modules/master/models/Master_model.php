@@ -3293,4 +3293,81 @@ class Master_model extends CI_Model {
 		];
 	}
 
+	public function get_question_exit_clearance($id_type){
+		$this->db->select('*');
+		$this->db->from('exit_clearance_questions');
+		$this->db->where('id_form_type', $id_type);
+		return $this->db->get()->result_array();
+	}
+	public function get_option_question($id_question){
+		$this->db->select('*');
+		$this->db->from('exit_clearance_question_options');
+		$this->db->where_in('id_question', $id_question);
+		return $this->db->get()->result_array();
+	}
+	public function get_section_exit_form(){
+		$this->db->select('*');
+		$this->db->from('exit_clearance_section_forms');
+		return $this->db->get()->result_array();
+	}
+
+	public function addQuestionEC($data,$option = [])
+	{
+		$this->db->trans_begin();
+		$this->db->insert('exit_clearance_questions', $data);
+		$insert_id = $this->db->insert_id();
+		if(!empty($option)){
+			foreach($option as &$opt){
+				$opt['id_question'] = $insert_id;
+			}
+			unset($opt);
+			$this->db->insert_batch('exit_clearance_question_options', $option);
+		}
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return false;
+		} else {
+			$this->db->trans_commit();
+			return true;
+		}
+	}
+	public function addOptionEC($data)
+	{
+		$this->db->trans_begin();
+		$this->db->insert('exit_clearance_question_options', $data);
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return false;
+		} else {
+			$this->db->trans_commit();
+			return true;
+		}
+	}
+	public function updateEC($data,$table)
+	{
+		$this->db->trans_begin();
+		if($table === 'exit_clearance_questions'){
+			$this->db->where('id', $data['id']);
+			$q = $this->db->get('exit_clearance_questions')->row_array();
+			$type = ['radio','select'];
+			if(in_array($q['question_type'],$type) && !in_array($data['question_type'],$type)){
+				$this->db->where('id_question', $data['id']);
+				$this->db->delete('exit_clearance_question_options');
+				if($this->db->trans_status() === FALSE) {
+					$this->db->trans_rollback();
+					return false;
+				}
+			}
+		}
+		$this->db->where('id', $data['id']);
+		$this->db->update($table, $data);
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return false;
+		} else {
+			$this->db->trans_commit();
+			return true;
+		}
+	}
+
 }

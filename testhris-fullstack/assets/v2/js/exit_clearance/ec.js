@@ -99,8 +99,6 @@ function updateGenerateButton() {
     
 }
 
-// $('#resignation_date').on('input change', updateGenerateButton);
-// updateGenerateButton();
 
 function calculate_last_day($resignationDate, $noticeMonth)
     {

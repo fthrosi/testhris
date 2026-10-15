@@ -6486,6 +6486,8 @@ class Form_model extends CI_Model {
 		$this->db->select('*');
 		$this->db->from('exit_clearance_question_options');
 		$this->db->where_in('id_question', $id_question);
+		$this->db->where('start_date <=', date('Y-m-d'));
+		$this->db->where('end_date >=', date('Y-m-d'));
 		return $this->db->get()->result_array();
 	}
 

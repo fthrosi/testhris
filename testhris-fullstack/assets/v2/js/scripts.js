@@ -3304,6 +3304,12 @@ $(document).ready(function () {
   $('.select-search_couple').select2({
     dropdownParent: $('#modalAddCouple')
   });
+  $('.select-search_question_section').select2({
+    dropdownParent: $('#modalQuestionExitClearance')
+  });
+  $('.select-search_question_option').select2({
+    dropdownParent: $('#modalOptionQuestion')
+  });
 
   $('.select-kuitansi').select2({
     tags: true
@@ -10667,6 +10673,150 @@ $(document).ready(function () {
     },
   });
 
+  var table = $('.qec-table').DataTable({
+    ajax: 'master/read/question_exit_clearance/',
+    //scrollY: '100%',
+    scrollX: true,
+    ordering: true,
+    searching: true,
+    dom:
+      "<'row'<'col-sm-6'B><'col-sm-5 text-right'f>>" +
+      "<'row'<'col-sm-12'tr>>" +
+      "<'row'<'col-sm-4 text-left'l>>" +
+      "<'row'<'col-sm-8 text-right'p>>" +
+      "<'row'<'col-sm-2'i>>",
+    buttons: [
+      {
+        extend: 'copy',
+        text: 'Copy to clipboard'
+      },
+      'excel',
+      'csv',
+      // 'pdf',
+      'colvis'
+    ],
+    autoWidth: true,
+    pagingType: 'full_numbers',
+    orderCellsTop: true,
+    fixedHeader: true,
+    initComplete: function () {
+      var api = this.api();
+
+      api
+        .columns()
+        .eq(0)
+        .each(function (colIdx) {
+          var cell = $('.filters th').eq(
+            $(api.column(colIdx).header()).index()
+          );
+          var title = $(cell).text();
+          $(cell).html('<input type="text" placeholder="' + title + '" />');
+
+          $(
+            'input',
+            $('.filters th').eq($(api.column(colIdx).header()).index())
+          )
+            .off('keyup change')
+            .on('change', function (e) {
+              // Get the search value
+              $(this).attr('title', $(this).val());
+              var regexr = '({search})';
+
+              var cursorPosition = this.selectionStart;
+              api
+                .column(colIdx)
+                .search(
+                  this.value != ''
+                    ? regexr.replace('{search}', '(((' + this.value + ')))')
+                    : '',
+                  this.value != '',
+                  this.value == ''
+                )
+                .draw();
+            })
+            .on('keyup', function (e) {
+              e.stopPropagation();
+
+              $(this).trigger('change');
+              $(this)
+                .focus()[0]
+                .setSelectionRange(cursorPosition, cursorPosition);
+            });
+        });
+    },
+  });
+  var table = $('.opt-qec-table').DataTable({
+    ajax: 'master/read/question_option_exit_clearance/',
+    //scrollY: '100%',
+    scrollX: true,
+    ordering: true,
+    searching: true,
+    dom:
+      "<'row'<'col-sm-6'B><'col-sm-5 text-right'f>>" +
+      "<'row'<'col-sm-12'tr>>" +
+      "<'row'<'col-sm-4 text-left'l>>" +
+      "<'row'<'col-sm-8 text-right'p>>" +
+      "<'row'<'col-sm-2'i>>",
+    buttons: [
+      {
+        extend: 'copy',
+        text: 'Copy to clipboard'
+      },
+      'excel',
+      'csv',
+      // 'pdf',
+      'colvis'
+    ],
+    autoWidth: true,
+    pagingType: 'full_numbers',
+    orderCellsTop: true,
+    fixedHeader: true,
+    initComplete: function () {
+      var api = this.api();
+
+      api
+        .columns()
+        .eq(0)
+        .each(function (colIdx) {
+          var cell = $('.filters th').eq(
+            $(api.column(colIdx).header()).index()
+          );
+          var title = $(cell).text();
+          $(cell).html('<input type="text" placeholder="' + title + '" />');
+
+          $(
+            'input',
+            $('.filters th').eq($(api.column(colIdx).header()).index())
+          )
+            .off('keyup change')
+            .on('change', function (e) {
+              // Get the search value
+              $(this).attr('title', $(this).val());
+              var regexr = '({search})';
+
+              var cursorPosition = this.selectionStart;
+              api
+                .column(colIdx)
+                .search(
+                  this.value != ''
+                    ? regexr.replace('{search}', '(((' + this.value + ')))')
+                    : '',
+                  this.value != '',
+                  this.value == ''
+                )
+                .draw();
+            })
+            .on('keyup', function (e) {
+              e.stopPropagation();
+
+              $(this).trigger('change');
+              $(this)
+                .focus()[0]
+                .setSelectionRange(cursorPosition, cursorPosition);
+            });
+        });
+    },
+  });
 
   $('.tableDashboardX thead tr')
     .clone(true)
@@ -12513,3 +12663,313 @@ function export_excel_req_mdcr_all_per_day_ap(noreqMDCR) {
             });
         });
 }
+
+
+$(document).ready(function () {
+    const optionTypes = ['radio', 'select'];
+    const $modal = $('#modalQuestionExitClearance');
+    const $form = $('#form_question_exit_clearance');
+    const $questionType = $('#form_question_exit_clearance select[name="question_type"]');
+    const $container = $('#question_options_container');
+    const $optionList = $('#question_options_list');
+
+    function toggleQuestionOptions() {
+        const type = $questionType.val();
+        const mode = $form.attr('data-mode');
+        if (mode === 'edit') {
+            $container.addClass('d-none');
+            return;
+        }
+
+        if (optionTypes.includes(type) && mode === 'add') {
+            $container.removeClass('d-none');
+
+            if ($optionList.children().length === 0) {
+                addOption();
+            }
+        } else {
+            $container.addClass('d-none');
+            $optionList.empty();
+        }
+    }
+
+    function addOption() {
+        const index = $optionList.children().length;
+
+        const html = `
+            <div class="input-group mb-2 question-option-item">
+                <input
+                    type="text"
+                    class="form-control"
+                    name="options[]"
+                    placeholder="Option ${index + 1}"
+                >
+
+                <div class="input-group-append">
+                    <button
+                        type="button"
+                        class="btn btn-danger remove-question-option"
+                        title="Remove option">
+                        <em class="icon ni ni-trash"></em>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        $optionList.append(html);
+    }
+
+    $questionType.on('change', toggleQuestionOptions);
+
+    $('#add_question_option').on('click', function () {
+        addOption();
+    });
+
+    $optionList.on('click', '.remove-question-option', function () {
+        $(this).closest('.question-option-item').remove();
+
+        $optionList.find('input[name="options[]"]').each(function (i) {
+            $(this).attr('placeholder', `Option ${i + 1}`);
+        });
+    });
+
+    toggleQuestionOptions();
+    $('.btn-add-question').on('click', function () {
+        $form.attr('data-mode', 'add')[0].reset();
+        $('#edit_question_id').val('');
+        $optionList.empty();
+        $modal.find('.title').text('Add Question Exit Clearance');
+        $('#save_question').text('Save');
+        toggleQuestionOptions();
+    });
+});
+$(document).on('click', '.btn-edit-question', function () {
+    const modal = $('#modalQuestionExitClearance');
+    const form = $('#form_question_exit_clearance');
+    modal.find('.title').text('Edit Question Exit Clearance');
+    form.attr('data-mode', 'edit');
+    modal.find('#save_question').text('Update');
+    
+    const q = JSON.parse($(this).attr('data-question'));
+    //change format to mm/dd/yyyy
+    const start_date = new Date(q.start_date);
+    const end_date = new Date(q.end_date);
+    const formatted_start_date = (start_date.getMonth() + 1) + '/' + start_date.getDate() + '/' + start_date.getFullYear();
+    const formatted_end_date = (end_date.getMonth() + 1) + '/' + end_date.getDate() + '/' + end_date.getFullYear();
+
+    $('#edit_question_id').val(q.id);
+    $('#section_id').val(q.section_id).trigger('change');
+    $('#parent_question_id').val(q.parent_id ?? '').trigger('change');
+    $('#question_text').val(q.question);
+    $('#question_type').val(q.question_type).trigger('change');
+    $('#mandatory').val(q.is_required).trigger('change');
+    $('#sequence').val(q.sequence);
+    $('#start_date_question').val(formatted_start_date);
+    $('#end_date_question').val(formatted_end_date);
+    $('#question_options_container').addClass('d-none');
+   
+    modal.modal('show');
+});
+$(document).on('click', '#save_question', function () {
+    const form = $('#form_question_exit_clearance')[0];
+    const mode = $(form).attr('data-mode');
+    if(mode !== 'add' && mode !== 'edit') {
+        Swal.fire({
+            icon: 'error',
+            title: 'Invalid Mode',
+            text: 'The form mode is not set correctly. Please refresh the page and try again.',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const formData = new FormData(form);
+    const questionId = $('#edit_question_id').val();
+    if(mode === 'edit') {
+        formData.append('question_id', questionId);
+    }
+    $.ajax({
+        url: base_url + (mode === 'add' ? 'master/addQuestionEC' : 'master/editQuestionEC'),
+        type: 'POST',
+        dataType: 'json',
+        data: formData,
+        processData: false,
+        contentType: false,
+
+        beforeSend: function () {
+
+            Swal.fire({
+                title: mode === 'add' ? 'Saving Data...' : 'Update Data...',
+                allowOutsideClick: false,
+                onOpen: function () {
+                    Swal.showLoading();
+                }
+            });
+
+        },
+
+        success: function (response) {
+            swal.fire({
+                icon: response.status ? 'success' : 'error',
+                title: response.status ? 'Success' : 'Failed',
+                text: response.message,
+                timer: 5000,
+                timerProgressBar: true,
+                
+            }).then(() => {
+                location.reload();
+            });
+            
+        },
+        error: function (xhr) {
+            swal.close();
+            swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: 'Failed to submit the form. Please try again later.',
+                timer: 5000,
+                timerProgressBar: true
+            });
+        }
+    });
+
+
+});
+$(document).on('click', '.btn-add-option', function () {
+    const form = $('#form_edit_option');
+    const modal = $('#modalOptionQuestion');
+    const button = $('#edit_option');
+    form.attr('id', 'form_add_option')[0].reset();
+    modal.find('.title').text('Add Option Question');
+    button.attr('id', 'add_option').text('Save');
+    modal.modal('show');
+});
+$(document).on('click', '#add_option', function () {
+    const form = $('#form_add_option')[0];
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    const formData = new FormData(form);
+    $.ajax({
+        url: base_url +'master/addOptionEC',
+        type: 'POST',
+        dataType: 'json',
+        data: formData,
+        processData: false,
+        contentType: false,
+
+        beforeSend: function () {
+
+            Swal.fire({
+                title: 'Saving Data...',
+                allowOutsideClick: false,
+                onOpen: function () {
+                    Swal.showLoading();
+                }
+            });
+
+        },
+
+        success: function (response) {
+            swal.fire({
+                icon: response.status ? 'success' : 'error',
+                title: response.status ? 'Success' : 'Failed',
+                text: response.message,
+                timer: 5000,
+                timerProgressBar: true,
+                
+            }).then(() => {
+                location.reload();
+            });
+            
+        },
+        error: function (xhr) {
+            swal.close();
+            swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: 'Failed to submit the form. Please try again later.',
+                timer: 5000,
+                timerProgressBar: true
+            });
+        }
+    });
+});
+$(document).on('click', '.btn-edit-option', function () {
+    const modal = $('#modalOptionQuestion');
+    
+    const o = JSON.parse($(this).attr('data-option'));
+    //change format to mm/dd/yyyy
+    const start_date = new Date(o.start_date);
+    const end_date = new Date(o.end_date);
+    const formatted_start_date = (start_date.getMonth() + 1) + '/' + start_date.getDate() + '/' + start_date.getFullYear();
+    const formatted_end_date = (end_date.getMonth() + 1) + '/' + end_date.getDate() + '/' + end_date.getFullYear();
+
+    $('#edit_option_id').val(o.id);
+    $('#parent_id_question_option').val(o.id_question).trigger('change');
+    $('#label_option').val(o.label);
+    $('#value_option').val(o.value);
+    $('#start_date_option').val(formatted_start_date);
+    $('#end_date_option').val(formatted_end_date);
+   
+    modal.modal('show');
+});
+$(document).on('click', '#edit_option', function () {
+  const form = $('#form_edit_option')[0];
+  const optionId = $('#edit_option_id').val();
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  const formData = new FormData(form);
+  formData.append('option_id', optionId);
+  $.ajax({
+        url: base_url + 'master/editOptionEC',
+        type: 'POST',
+        dataType: 'json',
+        data: formData,
+        processData: false,
+        contentType: false,
+
+        beforeSend: function () {
+
+            Swal.fire({
+                title: 'Update Data...',
+                allowOutsideClick: false,
+                onOpen: function () {
+                    Swal.showLoading();
+                }
+            });
+
+        },
+
+        success: function (response) {
+            swal.fire({
+                icon: response.status ? 'success' : 'error',
+                title: response.status ? 'Success' : 'Failed',
+                text: response.message,
+                timer: 5000,
+                timerProgressBar: true,
+                
+            }).then(() => {
+                location.reload();
+            });
+            
+        },
+        error: function (xhr) {
+            swal.close();
+            swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: 'Failed to submit the form. Please try again later.',
+                timer: 5000,
+                timerProgressBar: true
+            });
+        }
+  });
+});

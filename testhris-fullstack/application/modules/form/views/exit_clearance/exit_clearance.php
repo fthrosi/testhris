@@ -26,7 +26,10 @@
                             $class = $saved ? 'btn-edit-section' : 'btn-save-section';
                         ?>
                         <input type="hidden" id="saved-<?= $section['id']; ?>" value="<?= $saved ? '1' : '0'; ?>">
-                        <div class="wrap-section" data-section-id="<?= $section['id']; ?>" data-section-name="<?= $section['name']; ?>">
+                        <div class="wrap-section" data-section-id="<?= $section['id']; ?>" data-section-name="<?= $section['name']; ?>" data-toggle="collapse"
+                                    data-target="#section-<?= $section['id']; ?>"
+                                    aria-expanded="false"
+                                    aria-controls="section-<?= $section['id']; ?>">
                             <div class="section-header" id="heading-<?= $section['id']; ?>">
                                 <h7 style="font-weight: 600;"><?= html_escape($section['name']); ?></h7>  
                                 <div class="wrap-icon-status">
@@ -34,12 +37,7 @@
                                         <i class="fa-solid fa-check"></i>
                                         <span id="flag-text-<?= $section['id']; ?>"><?= $saved ? 'Saved' : 'Unsaved'; ?></span>
                                     </div>
-                                    <i class="fa-solid fa-angle-right icon-acc" 
-                                    id="iconbtn"
-                                    data-toggle="collapse"
-                                    data-target="#section-<?= $section['id']; ?>"
-                                    aria-expanded="false"
-                                    aria-controls="section-<?= $section['id']; ?>"></i>
+                                    <i class="fa-solid fa-angle-right icon-acc"></i>
                                 </div>
                                 
                             </div>
@@ -88,7 +86,7 @@
                                         <?php if((int)$question['id'] !== 15): ?>
                                             <div class="input-with-label">
                                                 <label style="margin: 0;" for="jumlah-<?= $question['id']; ?>">Quantity</label>
-                                                <input value="<?= html_escape($jumlah); ?>" <?= $saved ? 'readonly' : '' ?> <?= ($question['question_type'] === 'checkbox' && !$answer) ? 'disabled' : '' ?> onwheel="this.blur()" type="number" min="0" data-parent-id="<?= $question['id'] ?? ''; ?>" id="jumlah-<?= $question['id']; ?>" name="jumlah[<?= $question['id']; ?>]" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                                <input value="<?= html_escape($jumlah); ?>" <?= $saved ? 'readonly' : '' ?> <?= ($question['question_type'] === 'checkbox' && !$answer) ? 'disabled' : '' ?> onwheel="this.blur()" oninput="this.value = this.value.replace(/[^0-9]/g, '')" type="number" min="0" data-parent-id="<?= $question['id'] ?? ''; ?>" id="jumlah-<?= $question['id']; ?>" name="jumlah[<?= $question['id']; ?>]">
                                             </div>
                                         <?php endif; ?>
                                         <?php foreach ($question['children'] ?? [] as $child): ?>
@@ -188,15 +186,17 @@
                                             <textarea style="width: 100%; height:70px;" maxlength="255" value="" <?= $saved ? 'readonly' : '' ?> type="text" id="note-<?= $section['id']; ?>" name="note-<?= $section['id']; ?>"></textarea>
                                         </div>
                                     <?php endif; ?>
-                                    <div class="wraper-btn-save">
-                                        <button
-                                            type="button"
-                                            class="btn btn-success <?= $class; ?>"
-                                            data-section-id="<?= $section['id']; ?>"
-                                        >
-                                            <?= $saved ? 'Edit' : 'Save'; ?>
-                                        </button>
-                                    </div>
+                                    <?php if((int)$header['status'] === 0): ?>
+                                        <div class="wraper-btn-save">
+                                            <button
+                                                type="button"
+                                                class="btn btn-success <?= $class; ?>"
+                                                data-section-id="<?= $section['id']; ?>"
+                                            >
+                                                <?= $saved ? 'Edit' : 'Save'; ?>
+                                            </button>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>

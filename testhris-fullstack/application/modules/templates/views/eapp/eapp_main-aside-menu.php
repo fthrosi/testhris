@@ -593,6 +593,24 @@
                     <span class="nk-ibx-label-text">Log Activity</span>
                 </a>
             </li>
+            <li <?php echo ($this->uri->segment(2) == 'm') ? 'class="active"' : ''; ?>>
+                <a href="<?= site_url('master/question_exit_clearance'); ?>">
+                    <span class="nk-ibx-label-dot dot dot-xl dot-label bg-info"></span>
+                    <span class="nk-ibx-label-text">Question Exit Clearance</span>
+                </a>
+            </li>
+            <li <?php echo ($this->uri->segment(2) == 'm') ? 'class="active"' : ''; ?>>
+                <a href="<?= site_url('report/time_management_logs'); ?>">
+                    <span class="nk-ibx-label-dot dot dot-xl dot-label bg-info"></span>
+                    <span class="nk-ibx-label-text">Notice Period</span>
+                </a>
+            </li>
+            <li <?php echo ($this->uri->segment(2) == 'm') ? 'class="active"' : ''; ?>>
+                <a href="<?= site_url('report/time_management_logs'); ?>">
+                    <span class="nk-ibx-label-dot dot dot-xl dot-label bg-info"></span>
+                    <span class="nk-ibx-label-text">Pic Division</span>
+                </a>
+            </li>
         </ul>
         <?php } else if ($this->session->userdata('access_level') == '7' || $this->session->userdata('access_employee') == '12') { ?>
             <div class="nk-ibx-nav-head">

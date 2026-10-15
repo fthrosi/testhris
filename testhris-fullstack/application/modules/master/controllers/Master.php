@@ -100,6 +100,31 @@ class Master extends Admin_Controller
 		$data['content'] = 'master/employee';
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
 	}
+	public function question_exit_clearance()
+	{
+		$type_ec = $this->m_global->find('exit_clearance_form_types', 'code', 'EC')->row_array();
+		$question = $this->master_model->get_question_exit_clearance($type_ec['id']);
+		
+		$data['section'] = $this->master_model->get_section_exit_form();
+		$is_parent = array_filter($question, function ($q) {
+			return $q['id_parrent_question'] === null;
+		});
+		$is_have_option = array_filter($question, function ($q) {
+			return $q['question_type'] === 'radio' || $q['question_type'] === 'select';
+		});
+		$data['question'] = $is_parent;
+		$data['question_have_option'] = $is_have_option;
+		$data['count_mysubmission'] = count($this->home_model->getMySubmissionList());
+		$data['count_approval'] = count($this->inbox_model->getApprovalList());
+		$data['count_need_mdcr_cek'] = count($this->inbox_model->getApprovalListMDCRCek());
+		$data['count_need_mdcr_after_cek'] = count($this->inbox_model->getApprovalListMDCRAfterCek());
+		$data['count_mdcr_after_grouping_need_approved'] = count($this->inbox_model->getReqMDCRAfterGroupingNeedApproved());
+		$data['count_review'] = count($this->inbox_model->getReviewList());
+		$data['count_pa_mgmt'] = count($this->inbox_model->getPAList());
+		$data['formType'] = $this->form_model->getFormType();
+		$data['content'] = 'master/question_exit_clearance';
+		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
+	}
 
 	public function medical_plafon()
 	{
@@ -812,7 +837,175 @@ class Master extends Admin_Controller
 				echo json_encode($outputOffice);
 				break;
 			////////////////////////////// END TIME MANAGEMENT 2024 ////////////////////////////////
+			
+			case 'question_exit_clearance':
+				$type_ec = $this->m_global->find('exit_clearance_form_types', 'code', 'EC')->row_array();
+				$sections = $this->master_model->get_section_exit_form();
+				$listQuestion = $this->master_model->get_question_exit_clearance($type_ec['id']);
+				$option = [];
+				$qmap = [];
+				$smap = [];
+				$data = [];
+				usort($listQuestion, function ($a, $b) {
+					// Urutkan berdasarkan ID section
+					$sectionCompare = $a['id_form_section'] <=> $b['id_form_section'];
+					if ($sectionCompare !== 0) {
+						return $sectionCompare;
+					}
+					// Jika section sama, urutkan berdasarkan sequence
+					return $a['sequence'] <=> $b['sequence'];
+				});
+				if(!empty($listQuestion)){
+					foreach($listQuestion as $q){
+						$qmap[$q['id']] = $q;
+						$qmap[$q['id']]['question_parent'] = null;
+					}
+					foreach($sections as $s){
+						$smap[$s['id']] = $s;
+					}
+					foreach($qmap as $id => $q){
+						$id_question = $q['id_parrent_question'];
+						$id_Section = $q['id_form_section'];
+						if($q['id_parrent_question'] !== null){
+							if(isset($qmap[$id_question])){
+								$qmap[$id]['question_parent'] = $qmap[$id_question]['question'];
+							}
+						}
+						if(isset($smap[$id_Section])){
+							$qmap[$id]['section'] = $smap[$id_Section]['name'];
+						}
+						$start_date = $q['start_date'];
+						$end_date = $q['end_date'];
+						$startDate = date("Y-m-d", strtotime($start_date));
+						$endDate = date("Y-m-d", strtotime($end_date));
+						$today = date("Y-m-d");
+						if($today < $startDate || $today > $endDate){
+							$qmap[$id]['status'] = 0;
+						}else{
+							$qmap[$id]['status'] = 1;
+						}
+					}
+				}
+		        if (!empty($qmap)) {
+					foreach ($qmap as $key) {
+						$questionData = [
+							'id' => $key['id'],
+							'section_id' => $key['id_form_section'],
+							'parent_id' => $key['id_parrent_question'],
+							'question' => $key['question'],
+							'question_type' => $key['question_type'],
+							'is_required' => $key['is_required'],
+							'sequence' => $key['sequence'],
+							'start_date' => $key['start_date'],
+							'end_date' => $key['end_date'],
+							'status' => $key['status'],
+						];
 
+						$questionJson = htmlspecialchars(
+							json_encode($questionData),
+							ENT_QUOTES,
+							'UTF-8'
+						);
+
+						$row   = array();
+						$row[] = $key['section'];
+						$row[] = $key['question_parent'];
+						$row[] = $key['question'];
+						$row[] = $key['question_type'];
+						$row[] = (int)$key['is_required'] === 1 ? 'Required' : 'Optional';
+						$row[] = $key['sequence'];
+						$row[] = $key['start_date'];
+						$row[] = $key['end_date'];
+						$row[] = (int)$key['status'] === 1 ? 'Active' : 'Inactive';
+						$row[] = '<div class="btn-group btn-group-sm">
+										<a class="text-primary btn btn-icon btn-trigger btn-edit-question" data-question="' . $questionJson . '">
+										<em class="icon ni ni-edit"></em>
+										</a>
+								</div>
+								';
+		                $data[] = $row;
+		            }
+		            $output = array('data' => $data);
+		        } else {
+		            $output = array('data' => new ArrayObject());
+		        }
+		        // dumper($output);
+		        echo json_encode($output);
+				break;
+			case 'question_option_exit_clearance':
+				$type_ec = $this->m_global->find('exit_clearance_form_types', 'code', 'EC')->row_array();
+				$sections = $this->master_model->get_section_exit_form();
+				$listQuestion = $this->master_model->get_question_exit_clearance($type_ec['id']);
+				$option = [];
+				$qmap = [];
+				$omap = [];
+				$data = [];
+				if(!empty($listQuestion)){
+					$ids_select = array_column($listQuestion, 'id');
+					if(!empty($ids_select)){
+						$option = $this->master_model->get_option_question($ids_select);
+					}
+					foreach($listQuestion as $q){
+						$qmap[$q['id']] = $q;
+					}
+					foreach($option as $o){
+						$omap[$o['id']] = $o;
+					}
+					foreach($omap as $id => $o){
+						$id_question = $o['id_question'];
+						if(isset($qmap[$id_question])){
+							$omap[$id]['question'] = $qmap[$id_question]['question'];
+						}
+						$start_date = $o['start_date'];
+						$end_date = $o['end_date'];
+						$startDate = date("Y-m-d", strtotime($start_date));
+						$endDate = date("Y-m-d", strtotime($end_date));
+						$today = date("Y-m-d");
+						if($today < $startDate || $today > $endDate){
+							$omap[$id]['status'] = 0;
+						}else{
+							$omap[$id]['status'] = 1;
+						}
+					}
+				}
+		        if (!empty($omap)) {
+					foreach ($omap as $key) {
+						$optionData = [
+							'id' => $key['id'],
+							'id_question' => $key['id_question'],
+							'label' => $key['label'],
+							'value' => $key['value'],
+							'start_date' => $key['start_date'],
+							'end_date' => $key['end_date'],
+						];
+
+						$optionJson = htmlspecialchars(
+							json_encode($optionData),
+							ENT_QUOTES,
+							'UTF-8'
+						);
+						$row   = array();
+						$row[] = $key['question'];
+						$row[] = $key['label'];
+						$row[] = $key['value'];
+						$row[] = $key['start_date'];
+						$row[] = $key['end_date'];
+						$row[] = (int)$key['status'] === 1 ? 'Active' : 'Inactive';
+						$row[] = '<div class="btn-group btn-group-sm">
+										<a class="text-primary btn btn-icon btn-trigger btn-edit-option" data-option="' . $optionJson . '">
+										<em class="icon ni ni-edit"></em>
+										</a>
+								</div>
+								';
+		                $data[] = $row;
+		            }
+		            $output = array('data' => $data);
+		        } else {
+		            $output = array('data' => new ArrayObject());
+		        }
+		        // dumper($output);
+		        echo json_encode($output);
+				break;
 			default:
 				break;
 		}
@@ -2212,5 +2405,155 @@ class Master extends Admin_Controller
 			$outputMDCR = array('data' => new ArrayObject());
 		}
 		echo json_encode($outputMDCR);
+	}
+	public function addQuestionEC(){
+		$type_exit = $this->m_global->find('exit_clearance_form_types', 'code', 'EC')->row_array();
+		$answers = $this->input->post();
+		$option = $answers['options'] ?? '';
+		$start_date = date('Y-m-d', strtotime($answers['start_date_question']));
+		$end_date = !empty($answers['end_date_question']) ? date('Y-m-d', strtotime($answers['end_date_question'])) : "9999-12-31";
+		$data = [
+			'id_form_type' => $type_exit['id'],
+			'id_form_section' => $answers['section_id'],
+			'id_parrent_question' => empty($answers['parent_id']) || (int)$answers['parent_id'] === 0 ? '' : $answers['parent_id'],
+			'question' => $answers['question'],
+			'question_type' => $answers['question_type'],
+			'is_required' => $answers['mandatory'],
+			'sequence' => $answers['sequence'],
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'status' => 1,
+			'created_at' => date('Y-m-d H:i:s'),
+		];
+		$data_option = [];
+		foreach ($option as $key => $value) {
+			$data_option[] = [
+				'id_question' => '',
+				'label' => $value,
+				'value' => strtolower($value),
+				'status'=> 1,
+				'start_date' => $start_date,
+				'end_date' => $end_date,
+				'created_at' => date('Y-m-d H:i:s'),
+			];
+		}
+		$add = $this->master_model->addQuestionEC($data, $data_option);
+		if($add === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save question data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Question data saved successfully.',
+			]));
+
+	}
+	public function addOptionEC(){
+		$answers = $this->input->post();
+		$start_date = date('Y-m-d', strtotime($answers['start_date_option']));
+		$end_date = !empty($answers['end_date_option']) ? date('Y-m-d', strtotime($answers['end_date_option'])) : "9999-12-31";
+		$data = [
+			'id_question' => $answers['parent_id_option'],
+			'label' => $answers['label'],
+			'value' => $answers['value'],
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'status' => 1,
+			'created_at' => date('Y-m-d H:i:s'),
+		];
+		$add = $this->master_model->addOptionEC($data);
+		if($add === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save question data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Question data saved successfully.',
+			]));
+
+	}
+	public function editQuestionEC(){
+		$answers = $this->input->post();
+		$start_date = date('Y-m-d', strtotime($answers['start_date_question']));
+		$end_date = !empty($answers['end_date_question']) ? date('Y-m-d', strtotime($answers['end_date_question'])) : "9999-12-31";
+		$data = [
+			'id' => $answers['question_id'],
+			'id_form_section' => $answers['section_id'],
+			'id_parrent_question' => empty($answers['parent_id']) || (int)$answers['parent_id'] === 0 ? '' : $answers['parent_id'],
+			'question' => $answers['question'],
+			'question_type' => $answers['question_type'],
+			'is_required' => $answers['mandatory'],
+			'sequence' => $answers['sequence'],
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'status' => 1,
+			'updated_at' => date('Y-m-d H:i:s'),
+		];
+		$update = $this->master_model->updateEC($data, 'exit_clearance_questions');
+		if($update === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save question data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Question data saved successfully.',
+			]));
+	}
+
+	public function editOptionEC(){
+		$answers = $this->input->post();
+		$start_date = date('Y-m-d', strtotime($answers['start_date_option']));
+		$end_date = !empty($answers['end_date_option']) ? date('Y-m-d', strtotime($answers['end_date_option'])) : "9999-12-31";
+		$data = [
+			'id' => $answers['option_id'],
+			'id_question' => $answers['parent_id_option'],
+			'label' => $answers['label'],
+			'value' => $answers['value'],
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'status' => 1,
+			'updated_at' => date('Y-m-d H:i:s'),
+		];
+		$update = $this->master_model->updateEC($data, 'exit_clearance_question_options');
+		if($update === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save question data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Question data saved successfully.',
+			]));
 	}
 }
