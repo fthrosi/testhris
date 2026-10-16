@@ -606,7 +606,7 @@
                 </a>
             </li>
             <li <?php echo ($this->uri->segment(2) == 'm') ? 'class="active"' : ''; ?>>
-                <a href="<?= site_url('report/time_management_logs'); ?>">
+                <a href="<?= site_url('master/pic_division'); ?>">
                     <span class="nk-ibx-label-dot dot dot-xl dot-label bg-info"></span>
                     <span class="nk-ibx-label-text">Pic Division</span>
                 </a>

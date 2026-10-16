@@ -3382,4 +3382,31 @@ class Master_model extends CI_Model {
 		}
 	}
 
+	public function getAllEmployee($nik = null)
+	{
+		$outsource = encrypt('Outsource');
+		$intership = encrypt('Internship');
+		$this->db->select('complete_name, nik, email');
+		$this->db->from('v_hris_employee_updated');
+		$this->db->where('action !=', 'mqTovi#d');
+		$this->db->where('employee_subgroup !=', $outsource);
+		$this->db->where('employee_subgroup !=', $intership);
+		$this->db->where('nik !=', $nik);
+		$this->db->not_like('nik', '0000', 'after');
+		$this->db->order_by('nik', 'ASC');
+		return $this->db->get()->result_array();
+	}
+	public function addPicDivision($data)
+	{
+		$this->db->trans_begin();
+		$this->db->insert('exit_clearance_division_pic', $data);
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return false;
+		} else {
+			$this->db->trans_commit();
+			return true;
+		}
+	}
+
 }

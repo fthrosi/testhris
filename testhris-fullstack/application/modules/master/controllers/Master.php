@@ -138,6 +138,21 @@ class Master extends Admin_Controller
 		$data['content'] = 'master/notice_period';
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
 	}
+	public function pic_division()
+	{
+		$data['employee'] = $this->master_model->getAllEmployee();
+		$data['division'] = $this->m_global->find('exit_clearance_divisions')->result_array();
+		$data['count_mysubmission'] = count($this->home_model->getMySubmissionList());
+		$data['count_approval'] = count($this->inbox_model->getApprovalList());
+		$data['count_need_mdcr_cek'] = count($this->inbox_model->getApprovalListMDCRCek());
+		$data['count_need_mdcr_after_cek'] = count($this->inbox_model->getApprovalListMDCRAfterCek());
+		$data['count_mdcr_after_grouping_need_approved'] = count($this->inbox_model->getReqMDCRAfterGroupingNeedApproved());
+		$data['count_review'] = count($this->inbox_model->getReviewList());
+		$data['count_pa_mgmt'] = count($this->inbox_model->getPAList());
+		$data['formType'] = $this->form_model->getFormType();
+		$data['content'] = 'master/pic_division';
+		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
+	}
 
 	public function medical_plafon()
 	{
@@ -1057,6 +1072,61 @@ class Master extends Admin_Controller
 		        // dumper($output);
 		        echo json_encode($output);
 				break;
+			case 'pic_division':
+				$listPD = $this->m_global->find('exit_clearance_division_pic')->result_array();
+				if (!empty($listPD)) {
+					$employee = $this->master_model->getAllEmployee();
+					$division = $this->m_global->find('exit_clearance_divisions')->result_array();
+					foreach ($employee as $emp) {
+						$empMap[$emp['nik']] = $emp;
+					}
+					foreach ($division as $div) {
+						$divMap[$div['id']] = $div;
+					}
+					foreach ($listPD as $key) {
+						if(isset($empMap[$key['id_employee']])){
+							$name = str_replace("||","'", decrypt($empMap[$key['id_employee']]['complete_name']));
+							$nik = $empMap[$key['id_employee']]['nik'];
+						}
+						if(isset($divMap[$key['id_ec_division']])){
+							$division_name = $divMap[$key['id_ec_division']]['name'];
+						}
+
+						$pdData = [
+							'id' => $key['id'],
+							'id_employee' => $nik,
+							'id_ec_division' => $key['id_ec_division'],
+							'start_date' => $key['start_date'],
+							'end_date' => $key['end_date'],
+						];
+
+						$pdJson = htmlspecialchars(
+							json_encode($pdData),
+							ENT_QUOTES,
+							'UTF-8'
+						);
+						$row   = array();
+						$row[] = $name;
+						$row[] = $nik;
+						$row[] = $division_name;
+						$row[] = $key['start_date'];
+						$row[] = $key['end_date'];
+						$row[] = $key['start_date'] <= date('Y-m-d') && $key['end_date'] >= date('Y-m-d') ? 'Active' : 'Inactive';
+						$row[] = '<div class="btn-group btn-group-sm">
+										<a class="text-primary btn btn-icon btn-trigger btn-edit-pd" data-pd="' . $pdJson . '">
+										<em class="icon ni ni-edit"></em>
+										</a>
+								</div>
+								';
+		                $data[] = $row;
+		            }
+		            $output = array('data' => $data);
+		        } else {
+		            $output = array('data' => new ArrayObject());
+		        }
+		        // dumper($output);
+		        echo json_encode($output);
+			break;
 			default:
 				break;
 		}
@@ -2650,6 +2720,66 @@ class Master extends Admin_Controller
 			'update_at' => date('Y-m-d H:i:s'),
 		];
 		$update = $this->master_model->updateEC($data, 'exit_clearance_notice_periods');
+		if($update === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save notice period data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Notice period data saved successfully.',
+			]));
+	}
+	public function addPicDivision(){
+		$answers = $this->input->post();
+		$start_date = date('Y-m-d', strtotime($answers['start_date_pic_division']));
+		$end_date = !empty($answers['end_date_pic_division']) ? date('Y-m-d', strtotime($answers['end_date_pic_division'])) : "9999-12-31";
+		$data = [
+			'id_employee' => $answers['pic_employee'],
+			'id_ec_division' => $answers['pic_division'],
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'created_at' => date('Y-m-d H:i:s'),
+		];
+		$add = $this->master_model->addPicDivision($data);
+		if($add === false){
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(500)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Failed to save notice period data.',
+				]));
+		}
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode([
+				'status' => true,
+				'message' => 'Notice period data saved successfully.',
+			]));
+
+	}
+	public function editPicDivision(){
+		$answers = $this->input->post();
+		$start_date = date('Y-m-d', strtotime($answers['start_date_pic_division']));
+		$end_date = !empty($answers['end_date_pic_division']) ? date('Y-m-d', strtotime($answers['end_date_pic_division'])) : "9999-12-31";
+		$data = [
+			'id' => $answers['pic_division_id'],
+			'id_employee' => $answers['pic_employee'],
+			'id_ec_division' => $answers['pic_division'],
+			'start_date' => $start_date,
+			'end_date' => $end_date,
+			'update_at' => date('Y-m-d H:i:s'),
+		];
+		$update = $this->master_model->updateEC($data, 'exit_clearance_division_pic');
 		if($update === false){
 			return $this->output
 				->set_content_type('application/json')
