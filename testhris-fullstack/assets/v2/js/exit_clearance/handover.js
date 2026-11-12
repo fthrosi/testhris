@@ -358,3 +358,77 @@ $(document).on('click', '#update-handover', function () {
         }
     });
 });
+$(document).on('click', '#submit-revise-btn-handover', function () {
+    const select_length = parseInt($('#select_length').val());
+    const pic_length = parseInt($('#pic_length').val());
+    const ec_status = parseInt($('#ec_status').val());
+    const isSelectEmpty = select_length === 0 || isNaN(select_length) ? true : false;
+    const isPicEmpty = pic_length === 0 || isNaN(pic_length) ? true : false;
+    if(!isSelectEmpty && isPicEmpty) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Failed',
+            text: 'Please select at least one PIC before submitting the handover.',
+            timer: 5000,
+            timerProgressBar: true
+        });
+        return;
+    }
+    if(ec_status !== 1){
+        Swal.fire({
+            icon: 'error',
+            title: 'Failed',
+            text: 'Please submit the Exit Clearance form before submitting the handover.',
+            timer: 5000,
+            timerProgressBar: true
+        });
+        return;
+    }
+    
+    const idFormRequest = $('#id_form_request').val();
+    const id_form_handover = $(this).data('id');
+    const id_handover = $('#id_handover').val();
+    $.ajax({
+        url: base_url + 'form/SaveRevisionExitHandover/' + idFormRequest,
+        type: 'POST',
+        data: { 
+            id_form_handover: id_form_handover,
+            id_handover: id_handover,
+            status: 1
+        },
+        beforeSend: function () {
+            Swal.fire({
+                title: 'Submitting data...',
+                allowOutsideClick: false,
+                onOpen: function () {
+                    Swal.showLoading();
+                }
+            });
+        },
+        success: function (response) {
+            swal.close();
+            
+            swal.fire({
+                icon: response.status ? 'success' : 'error',
+                title: response.status ? 'Success' : 'Failed',
+                text: response.message,
+                timer: 5000,
+                timerProgressBar: true
+            }).then(() => {
+                window.location.href = base_url + 'form/home_exit_clearance/' + idFormRequest;
+            }
+            );
+        },
+        error: function (xhr) {
+            swal.close();
+            swal.fire({
+                icon: 'error',
+                title: 'Failed',
+                text: xhr.message || 'An error occurred while submitting the handover.'
+            }).then(() => {
+                // kalau mau reload setelah submit
+                location.reload();
+            });
+        }
+    });
+});

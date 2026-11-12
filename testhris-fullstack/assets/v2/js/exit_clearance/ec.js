@@ -665,3 +665,181 @@ $('#add_note').on('click', function(e) {
     });
     
 });
+$(document).on('click', '.show-file-ec',function() {
+    var filename = $(this).data('filename');
+    var employee_id = $(this).data('id-employee');
+    if (filename) {
+        var url = base_url + 'form/view_ec_pdf/' + employee_id + '/' + filename;
+        window.open(url, '_blank');
+    }
+});
+$(document).on('click', '.approval_ec_btn',function(e) {
+    e.preventDefault();
+
+    var id = $(this).data('id');
+    var status = $(this).data('status');
+    if(status === "Revised"){
+        Swal.fire({
+            title: 'Revise Exit Clearance',
+            text: 'Please provide a reason for revision.',
+            input: 'textarea',
+            inputPlaceholder: 'Enter your reason...',
+            inputAttributes: {
+                'aria-label': 'Enter your reason',
+                'maxlength': 255
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Submit',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+
+            inputValidator: (value) => {
+                if (!value || !value.trim()) {
+                    return 'Reason is required!';
+                }
+            }
+        }).then((result) => {
+
+            if (result.isConfirmed) {
+
+                const notes = result.value;
+                $.ajax({
+                    url: base_url + 'form/do_approval_exit_clearance',
+                    type: 'POST',
+                    data: {
+                        id: id,
+                        status: status,
+                        notes: notes,
+                    },
+                    dataType: 'json',
+
+                    beforeSend: function() {
+                        Swal.fire({
+                            title: 'Submitting...',
+                            text: 'Please wait',
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+                    },
+
+                    success: function(response) {
+
+                        if (response.status) {
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success',
+                                text: response.message,
+                                timer: 5000,
+                                timerProgressBar: true,
+                            }).then(() => {
+                                // kalau mau reload setelah submit
+                                // location.reload();
+                                window.location.href = base_url + 'inbox/approval_resignation_letter';
+                            });
+
+                        } else {
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Failed',
+                                text: response.message,
+                                timer: 5000,
+                                timerProgressBar: true
+                            });
+
+                        }
+                    },
+
+                    error: function(xhr) {
+
+                        console.log(xhr.responseText);
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Something went wrong while submitting the resignation request.',
+                            timer: 5000,
+                            timerProgressBar: true
+                        }).then(() => {
+                            // kalau mau reload setelah submit
+                            location.reload();
+                        });
+                    }
+                });
+            }
+        });
+    }else{
+        $.ajax({
+            url: base_url + 'form/do_approval_exit_clearance',
+            type: 'POST',
+            data: {
+                id: id,
+                status: status,
+            },
+            dataType: 'json',
+
+            beforeSend: function() {
+                Swal.fire({
+                    title: 'Submitting...',
+                    text: 'Please wait',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+            },
+
+            success: function(response) {
+
+                if (response.status) {
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: response.message,
+                        timer: 5000,
+                        timerProgressBar: true,
+                    }).then(() => {
+                        // kalau mau reload setelah submit
+                        // location.reload();
+                        window.location.href = base_url + 'inbox/approval_resignation_letter';
+                    });
+
+                } else {
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Failed',
+                        text: response.message,
+                        timer: 5000,
+                        timerProgressBar: true
+                    });
+
+                }
+            },
+
+            error: function(xhr) {
+
+                console.log(xhr.responseText);
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Something went wrong while submitting the resignation request.',
+                    timer: 5000,
+                    timerProgressBar: true
+                }).then(() => {
+                    // kalau mau reload setelah submit
+                    location.reload();
+                });
+            }
+        });
+    }
+    
+});
+$(document).on('click', '#approve_ec_back', function() {
+        window.location.href = base_url + 'inbox/approval_resignation_letter';
+});

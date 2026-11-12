@@ -21,7 +21,7 @@ $steps = [
     [
         'title' => 'Approval and Verification of Exit Clearance',
         'icon'  => '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/><path d="M8 10.5l1.6 1.6L13.5 8"/>',
-        'url'   => base_url("inbox/detail/approval_mdcr/{$id}")
+        'url'   => base_url("form/view_approval_ec/{$id}")
     ],
     [
         'title' => 'Reference Letter',

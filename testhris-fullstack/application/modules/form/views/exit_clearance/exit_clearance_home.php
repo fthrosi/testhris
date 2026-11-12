@@ -16,20 +16,32 @@
             <div class="home-ec">
                 <?php foreach ($form_steps as $step_number => $step): ?>
                         <?php
-                                $saved = (int)$step['status'] === 1;
+                                $saved = (int)$step['status'] !== 0;
+                                $status = (int)$step['status'];
+                                
                         ?>
                     <div class="ec-step">
                         <div class="ec-step-number">
                                 <h5 style="font-weight: bold;"><?= $step['title'] ?></h5>
-                                <?php if ($step['can_access']): ?>
+                                <?php if ($step['can_access'] && $step['can_view']): ?>
                                         <a style="color: #b9b9b9; text-decoration: none;" href="<?= $step['url'] ?>">Click to view</a>
+                                <?php elseif(!$step['can_view']): ?>
+                                        <span id="cantView" style="color: #b9b9b9; cursor: pointer;">Click to view</span>
                                 <?php else: ?>
                                         <span id="cantAccess" style="color: #b9b9b9; cursor: pointer;">Click to view</span>
                                 <?php endif; ?>
                         </div>
+                        <?php
+                                $class_icon_pdf = $step['can_view'] ? 'show-file-ec' : 'cant-view-ec';
+                        ?>
                         <div class="wrap-icon-status">
-                                <div id="flag-<?= $step['id']; ?>" class=" <?= $saved ? 'saved' : 'unsaved'; ?>">
-                                        <i class="fa-solid fa-check"></i>
+                                <em id="generated_ec_pdf" class="icon ni ni-file-pdf <?= $class_icon_pdf ?>" data-filename="<?= $step['filename'] ?>" data-id-employee="<?= $form_request['employee_id'] ?>" style="display: <?= $step['filename'] ? 'inline-block' : 'none' ?>; font-size: 2.5rem; color: #da1b1b;"></em>
+                                <div id="flag-<?= $step['id']; ?>" class=" <?= $saved ? 'saved' : 'unsaved'; ?>" style="<?= $status === 1 ? 'background-color: #1ac236;' : ($status === 2 ? 'background-color: #ffcc00;' : ''); ?>">
+                                        <?php if ($status === 1): ?>
+                                                <i class="fa-solid fa-check"></i>
+                                        <?php elseif ($status === 2): ?>
+                                                <i class="fa-solid fa-exclamation"></i>
+                                        <?php endif; ?>
                                 </div>
                         </div>
                     </div>
@@ -79,7 +91,11 @@
                         <?php if((int)$header['status'] === 0): ?>
                                 <button type="button" id="submit-all-ec" data-id="<?= $header['id'] ?>" class="btn btn-success">Submit</button>
                         <?php endif; ?>
-                        <button type="button" id="back_btn_user" class="btn btn-danger">Back</button> 
+                        <button type="button" id="<?= $can_approve ? 'approve_ec_back' : 'back_btn_user' ?>" class="btn btn-danger">Back</button> 
+                        <?php if($can_approve && (int)$header['status'] === 1): ?>
+                                <button type="button" id="approval_ec_btn" data-status="Revised" data-id="<?= $header['id_form_request'] ?>" class="btn btn-warning approval_ec_btn">Revise</button>
+                                <button type="button" id="approval_ec_btn" data-status="Approved" data-id="<?= $header['id_form_request'] ?>" class="btn btn-success approval_ec_btn">Approve</button>
+                        <?php endif; ?>
                 </div>
             </div>
         </div>

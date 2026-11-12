@@ -1913,5 +1913,39 @@ class Dashboard extends Admin_Controller
 		$output = array('data' => $data);
 		echo json_encode($output);
 	}
+	public function dashboardEC()
+	{
+		//dumper($this->session->userdata('access_employee'));
+		// $role_hr = $this->m_global->find('exit_clearance_roles','code', 'HRV')->row_array();
+		// $is_hr = $this->m_global->getRow('*','exit_clearance_user_roles', ['id_employee' => $this->emp_id, 'id_role' => $role_hr['id']]);
+		// if (empty($is_hr) || !$is_hr) {
+        //     print_r('You are not authorized to access this page');die;
+        // }
+		$data['count_mysubmission'] = count($this->home_model->getMySubmissionList());
+        $data['count_approval_ec'] = count($this->inbox_model->get_my_ec_approver());
+		$data['count_approval'] = count($this->inbox_model->getApprovalList());
+		$data['count_need_tm_cek'] = count($this->inbox_model->getApprovalListTMCek_ztm());
+		$data['count_need_mdcr_cek'] = count($this->inbox_model->getApprovalListMDCRCek());
+		$data['count_need_mdcr_after_cek'] = count($this->inbox_model->getApprovalListMDCRAfterCek());
+		$data['count_mdcr_after_grouping_need_approved'] = count($this->inbox_model->getReqMDCRAfterGroupingNeedApproved());
+        $data['count_review'] = count($this->inbox_model->getReviewList());
+        $data['count_pa_mgmt'] = count($this->inbox_model->getPAList());
+		$data['InfoEmployee'] = $this->dashboard_model->InfoEmployee();
+		$data['info'] = $this->dashboard_model->getInfo();
+        $data['formType'] = $this->form_model->getFormType();
+
+		$listEC= $this->dashboard_model->getListEC();
+		foreach($listEC as &$l){
+			$l['complete_name'] = decrypt($l['complete_name']);
+			$l['division'] = decrypt($l['division']);
+			$l['position'] = decrypt($l['position']);
+			$l['department'] = decrypt($l['department']);
+			$l['status_rl'] = $l['status_rl'] == 1 ? 'Submitted' : ($l['status_rl'] == 2 ? 'Revised' : ($l['status_rl'] == 3 ? 'Complete' : ''));
+			$l['status_ec'] = $l['status_ec'] == 1 ? 'Waiting Approval' : ($l['status_ec'] == 2 ? 'Revised' : ($l['status_ec'] == 3 ? 'Complete' : ''));
+		}
+		$data['listEC'] = $listEC;
+		$data['content'] = 'dashboard/dashboardEC';
+		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
+	}
 	
 }

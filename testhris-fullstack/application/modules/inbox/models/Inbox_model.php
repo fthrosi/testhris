@@ -31,6 +31,20 @@ class Inbox_model extends CI_Model {
 			->join('hris_employee e', 'f.employee_id = e.nik AND e.id_employee = (SELECT MAX(e2.id_employee) FROM hris_employee e2 WHERE e2.nik = f.employee_id)', 'inner', false)
 			->where('s.id_approver', $this->nik)
 			->where('s.status', 0)
+			->group_start()
+			->where('s.sequence', 1)
+			->or_where(
+				'EXISTS (
+					SELECT 1
+					FROM exit_clearance_approval_steps AS prev
+					WHERE prev.id_approval_req = `s`.id_approval_req
+					AND prev.sequence = `s`.sequence - 1
+					AND prev.status = 1
+				)',
+				null,
+				false
+			)
+			->group_end()
 			->get()
 			->result_array();
 		if (!empty($approval_ec)) {
@@ -50,9 +64,23 @@ class Inbox_model extends CI_Model {
 			)
 			->join('form_request f', 'r.id_form_request = f.id')
 			->join('exit_clearance_resignation_letters rl', 'f.id = rl.id_form_request', 'left')
-			->join('hris_employee e', 'f.employee_id = e.nik AND e.id_employee = (SELECT MAX(e2.id_employee) FROM hris_employee e2 WHERE e2.nik = f.employee_id)', 'inner', false)
+			->join('v_hris_employee_updated e', 'f.employee_id = e.nik', 'left')
 			->where('s.id_approver', $this->nik)
 			->where('(rl.status != 0 OR rl.status != 4)', null, false)
+			->group_start()
+			->where('s.sequence', 1)
+			->or_where(
+				'EXISTS (
+					SELECT 1
+					FROM exit_clearance_approval_steps AS prev
+					WHERE prev.id_approval_req = `s`.id_approval_req
+					AND prev.sequence = `s`.sequence - 1
+					AND prev.status = 1
+				)',
+				null,
+				false
+			)
+			->group_end()
 			->order_by('f.id', 'DESC')
 			->get()
 			->result_array();
@@ -104,33 +132,35 @@ class Inbox_model extends CI_Model {
 				return false;
 			}
 		}else{
-			$exit = $this->db->get_where('exit_clearance',['id_form_request' => $id])->row_array();
-			$type = $this->db->select('id,code')->where_in('code', ['EC','EI'])->get('exit_clearance_form_types')->result_array();
-			$ids = array_column($type, 'id', 'code');
-			$id_ec = $ids['EC'] ?? null;
-			$id_ei = $ids['EI'] ?? null;
-			if(empty($exit)){
-				$this->db->trans_rollback();
-				return false;
-			}
-			$data = [
-				[
-					'id_exit_clearance' => $exit['id'],
-					'id_form_type' => $id_ec,
-					'status' => 0,
-					'created_at' => $this->date,
-				],
-				[
-					'id_exit_clearance' => $exit['id'],
-					'id_form_type' => $id_ei,
-					'status' => 0,
-					'created_at' => $this->date,
-				]
-			];
-			$this->db->insert_batch('form_exit_clearance', $data);
-			if($this->db->trans_status() === FALSE){
-				$this->db->trans_rollback();
-				return false;
+			if($type === 'RESIGNATION_LETTER'){
+				$exit = $this->db->get_where('exit_clearance',['id_form_request' => $id])->row_array();
+				$type = $this->db->select('id,code')->where_in('code', ['EC','EI'])->get('exit_clearance_form_types')->result_array();
+				$ids = array_column($type, 'id', 'code');
+				$id_ec = $ids['EC'] ?? null;
+				$id_ei = $ids['EI'] ?? null;
+				if(empty($exit)){
+					$this->db->trans_rollback();
+					return false;
+				}
+				$data = [
+					[
+						'id_exit_clearance' => $exit['id'],
+						'id_form_type' => $id_ec,
+						'status' => 0,
+						'created_at' => $this->date,
+					],
+					[
+						'id_exit_clearance' => $exit['id'],
+						'id_form_type' => $id_ei,
+						'status' => 0,
+						'created_at' => $this->date,
+					]
+				];
+				$this->db->insert_batch('form_exit_clearance', $data);
+				if($this->db->trans_status() === FALSE){
+					$this->db->trans_rollback();
+					return false;
+				}
 			}
 		}
 		if ($this->db->trans_status() === FALSE) {
@@ -2601,5 +2631,100 @@ class Inbox_model extends CI_Model {
 			'created_at' => $this->date
 		];
 		return $this->db->insert('exit_clearance_notes', $data);
+	}
+	public function checkRole()
+	{
+		$this->db->select('r.code');
+		$this->db->from('exit_clearance_user_roles ur');
+		$this->db->join('exit_clearance_roles r', 'ur.id_role = r.id', 'inner');
+		$this->db->where('ur.id_employee', $this->nik);
+		return $this->db->get()->result_array();
+	}
+	public function check_step_approval()
+	{
+		$this->db->select('as.*, fr.request_number, e.complete_name, fr.employee_id, fr.id as id_form_request');
+		$this->db->from('exit_clearance_approval_steps as');
+
+		$this->db->join(
+			'exit_clearance_approval_request ar',
+			'as.id_approval_req = ar.id',
+			'inner'
+		);
+
+		$this->db->join(
+			'form_request fr',
+			'ar.id_form_request = fr.id',
+			'inner'
+		);
+		$this->db->join(
+			'v_hris_employee_updated e',
+			'e.nik = fr.employee_id',
+			'inner'
+		);
+
+		$this->db->where('ar.approval_type', 'EXIT_CLEARANCE');
+		$this->db->where('as.id_approver', $this->nik);
+
+		$this->db->group_start();
+			$this->db->where('as.sequence', 1);
+
+			$this->db->or_where(
+				'EXISTS (
+					SELECT 1
+					FROM exit_clearance_approval_steps AS prev
+					WHERE prev.id_approval_req = `as`.id_approval_req
+					AND prev.sequence = `as`.sequence - 1
+					AND prev.status = 1
+				)',
+				null,
+				false
+			);
+		$this->db->group_end();
+		return $this->db->get()->result_array();
+	}
+	public function verification_approval($data,$id,$data_form = [],$data_section = [], $note = [], $id_note=null)
+	{
+		// dumper($data_form);
+		$this->db->trans_begin();
+		$this->db->where('id', $id);
+		$this->db->update('exit_clearance_approval_steps', $data);
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			return false;
+		}
+		if(($id_note || $id_note != null) && ($note || $note != null)){
+			$this->db->where('id', $id_note);
+			$this->db->update('exit_clearance_note_sections', $note);
+			if( $this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		if(!$id_note && ($note || $note != null)){
+			$this->db->insert('exit_clearance_note_sections', $note);
+			if ($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		if($data_section || $data_section != null){
+			$section_without_id = $data_section;
+			unset($section_without_id['id']);
+			$this->db->where('id',$data_section['id']);
+			$this->db->update('exit_clearance_form_sections', $section_without_id);
+			if( $this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		if($data_form || $data_form != null){
+			$test = $this->db->update_batch('form_exit_clearance', $data_form, 'id');
+			if( $this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				return false;
+			}
+		}
+		$this->db->trans_commit();
+		return true;
 	}
 }

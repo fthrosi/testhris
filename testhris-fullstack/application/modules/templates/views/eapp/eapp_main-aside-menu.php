@@ -172,6 +172,11 @@
                                 <span class="nk-ibx-menu-text">Appraisal Approval<span class="badge badge-pill badge-primary"></span></span>
                             </a>
                         </li>
+                        <li class="nk-ibx-menu-item">
+                            <a class="nk-ibx-menu-link" href="<?= site_url('inbox/approval_resignation_letter'); ?>">
+                                <span class="nk-ibx-menu-text">Exit Clearance <span class="badge badge-pill badge-primary"><?=($count_approval_ec == 0) ? '' : $count_approval_ec;?></span></span>
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 <!-- ////////////////////////////////START TIME MANAGEMENT 2024//////////////////////////////////// -->
@@ -196,10 +201,15 @@
                                     </a>
                                     </li>
                                     <li class="nk-ibx-menu-item">
-                                    <a class="nk-ibx-menu-link" href="<?= site_url('inbox/approval_TM_ztm'); ?>">
-                                        <!-- <span class="nk-ibx-menu-text">Time Off Approval<span class="badge badge-pill badge-primary"><?=(($count_need_tm_cek + $count_need_tm_hr) == 0) ? '' : ($count_need_tm_cek + $count_need_tm_hr);?></span></span> -->
-                                        <span class="nk-ibx-menu-text">Time Off Approval</span>
-                                    </a>
+                                        <a class="nk-ibx-menu-link" href="<?= site_url('inbox/approval_TM_ztm'); ?>">
+                                            <!-- <span class="nk-ibx-menu-text">Time Off Approval<span class="badge badge-pill badge-primary"><?=(($count_need_tm_cek + $count_need_tm_hr) == 0) ? '' : ($count_need_tm_cek + $count_need_tm_hr);?></span></span> -->
+                                            <span class="nk-ibx-menu-text">Time Off Approval</span>
+                                        </a>
+                                    </li>
+                                    <li class="nk-ibx-menu-item">
+                                        <a class="nk-ibx-menu-link" href="<?= site_url('inbox/approval_resignation_letter'); ?>">
+                                            <span class="nk-ibx-menu-text">Exit Clearance <span class="badge badge-pill badge-primary"><?=($count_approval_ec == 0) ? '' : $count_approval_ec;?></span></span>
+                                        </a>
                                     </li>
                                 </ul>
                             </li>

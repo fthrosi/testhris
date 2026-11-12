@@ -104,7 +104,7 @@
                 
                 <?php } ?>
             </div>
-             <!-- /////////////////////////////////// START EXIT CLEARANCE 2024//////////////////////////////////////////// -->
+             <!-- /////////////////////////////////// START EXIT CLEARANCE 2026//////////////////////////////////////////// -->
             <div class="tab-pane" id="submission_ec">
                 <div class="card-inner" style="padding: 0px;">
                     <div class="scroll">
@@ -121,8 +121,32 @@
                             <tbody>
                             <?php
                                 foreach($header_ec as $key => $value){
-                                $url1 = base_url('form/detail/'.$value["form_type"].'/'.encode_url($value["id"]));
-                                $url2 = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                    switch ((int) $value["current_step"]){
+                                        case 1:
+                                            $url1 = base_url('form/detail/'.$value["form_type"].'/'.encode_url($value["id"]));
+                                            break;
+                                        case 2:
+                                            $url1 = base_url('inbox/detail_req_resignation_letter/'.encode_url($value["id"]));
+                                            break;
+                                        case 3:
+                                            $url1 = base_url('inbox/detail_req_resignation_letter/'.encode_url($value["id"]));
+                                            $url2 = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                            break;
+                                        case 4:
+                                            $url1 = base_url('inbox/detail_req_resignation_letter/'.encode_url($value["id"]));
+                                            $url2 = base_url('form/view_approval_ec/'.encode_url($value["id"]));
+                                            break;
+                                        case 5:
+                                            $url1 = base_url('inbox/detail_req_resignation_letter/'.encode_url($value["id"]));
+                                            $url2 = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                            break;
+                                        default:
+                                            $url1 = base_url('inbox/detail_req_resignation_letter/'.encode_url($value["id"]));
+                                            $url2 = base_url('form/detail/'.$value["form_type"].'/'.encode_url($value["id"]));
+                                            break;
+                                    }
+                                // $url1 = base_url('form/detail/'.$value["form_type"].'/'.encode_url($value["id"]));
+                                // $url2 = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
                                 
                                 //////////////////////
                                 echo"

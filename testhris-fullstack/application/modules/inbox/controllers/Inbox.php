@@ -67,60 +67,103 @@ class Inbox extends Admin_Controller
 
 	public function approval_resignation_letter()
 	{
-		$revised = [];
-		$approved = [];
-		$allData = $this->inbox_model->get_list_ec_approval();
+		$nik = $this->session->userdata('nik');
+		$role = $this->session->userdata('exit_clearance_roles');
+		if(!$role){
+			$role = $this->inbox_model->checkRole($nik);
+		}
+		$is_head = in_array('DVH', $role);
+		$check_step = $this->inbox_model->check_step_approval();
 		$result = [];
 		$cek = [];
-		foreach ($allData as $row) {
-			$key = $row['request_number'];
+		$revised = [];
+		$approved = [];
+		if($is_head && $check_step['unit_code'] === null){
+			$allData = $this->inbox_model->get_list_ec_approval();
+			foreach ($allData as $row) {
+				$key = $row['request_number'];
 
-			if (!isset($result[$key])) {
-				$result[$key] = [
-					'id'                   => $row['id'],
-					'request_number'       => $row['request_number'],
-					'complete_name'        => $row['complete_name'],
-					'employee_id' 		=> $row['employee_id'],
-					'status_resign'    		=> null,
-					'status_exit'    		=> null
-				];
-			}
-			$status = (int)$row['status_step'] === 0 ? 1 : ((int)$row['status_step'] === 1 ? 3 : ((int)$row['status_step'] === 2 ? 2 : 8));
-
-			if ($row['approval_type'] == 'RESIGNATION_LETTER') {
-				$result[$key]['status_resign'] = $status;
-			}
-
-			if ($row['approval_type'] == 'EXIT_CLEARANCE') {
-				$result[$key]['status_exit'] = $status;
-			}
-		}
-		foreach($result as $key) {
-			if(!$key['status_exit']){
-				switch ((int)$key['status_resign']){
-					case 1:
-						$cek[] = $key;
-						break;
-					case 2:
-						$revised[] = $key;
-						break;
-					case 3:
-						$approved[] = $key;
-						break;
+				if (!isset($result[$key])) {
+					$result[$key] = [
+						'id'                   => $row['id'],
+						'request_number'       => $row['request_number'],
+						'complete_name'        => $row['complete_name'],
+						'employee_id' 		=> $row['employee_id'],
+						'status_resign'    		=> null,
+						'status_exit'    		=> null
+					];
 				}
-			}else{
-				switch ((int)$key['status_exit']){
-					case 1:
-						$cek[] = $key;
-						break;
-					case 2:
-						$revised[] = $key;
-						break;
-					case 3:
-						$approved[] = $key;
-						break;
+				$status = (int)$row['status_step'] === 0 ? 1 : ((int)$row['status_step'] === 1 ? 3 : ((int)$row['status_step'] === 2 ? 2 : 8));
+
+				if ($row['approval_type'] == 'RESIGNATION_LETTER') {
+					$result[$key]['status_resign'] = $status;
+				}
+
+				if ($row['approval_type'] == 'EXIT_CLEARANCE') {
+					$result[$key]['status_resign'] = $row['status_rl'];
+					$result[$key]['status_exit'] = $status;
 				}
 			}
+			foreach($result as $key) {
+				if(!$key['status_exit']){
+					switch ((int)$key['status_resign']){
+						case 1:
+							$cek[] = $key;
+							break;
+						case 2:
+							$revised[] = $key;
+							break;
+						case 3:
+							$approved[] = $key;
+							break;
+					}
+				}else{
+					switch ((int)$key['status_exit']){
+						case 1:
+							$cek[] = $key;
+							break;
+						case 2:
+							$revised[] = $key;
+							break;
+						case 3:
+							$approved[] = $key;
+							break;
+					}
+				}
+			}
+			$data['content'] = 'inbox/list_approval_resignation_letter';
+			
+		}else{
+			foreach ($check_step as $row) {
+				$key = $row['request_number'];
+				$status = (int)$row['status'] === 0 ? 1 : ((int)$row['status'] === 1 ? 3 : ((int)$row['status'] === 2 ? 2 : 8));
+				if (!isset($result[$key])) {
+					$result[$key] = [
+						'id'                   => $row['id'],
+						'id_form_request'      => $row['id_form_request'],
+						'id_section'           => $row['unit_code'],
+						'request_number'       => $row['request_number'],
+						'complete_name'        => decrypt($row['complete_name']),
+						'employee_id' 			=> $row['employee_id'],
+						'status'    		=> $status,
+					];
+				}
+				foreach($result as $key) {
+					switch ((int)$key['status']){
+						case 1:
+							$cek[] = $key;
+							break;
+						case 2:
+							$revised[] = $key;
+							break;
+						case 3:
+							$approved[] = $key;
+							break;
+					}
+					
+				}
+			}
+			$data['content'] = 'inbox/list_approval_verificator';
 		}
 		$data['count_mysubmission'] = count($this->home_model->getMySubmissionList());
 		$data['count_approval_ec'] = count($this->inbox_model->get_my_ec_approver());
@@ -131,14 +174,12 @@ class Inbox extends Admin_Controller
 		$data['count_mdcr_after_grouping_need_approved'] = count($this->inbox_model->getReqMDCRAfterGroupingNeedApproved());
 		$data['count_review'] = count($this->inbox_model->getReviewList());
 		$data['count_pa_mgmt'] = count($this->inbox_model->getPAList());
+		$data['formType'] = $this->form_model->getFormType();
+		$data['nik_user'] = $this->nik;
 		$data['header_ec_cek'] = $cek;
 		$data['header_ec_rejected'] = $revised;
 		$data['header_ec_approved'] = $approved;
-		$data['formType'] = $this->form_model->getFormType();
-		//start update 2026
-		$data['nik_user'] = $this->nik;
-		//end update 2026
-		$data['content'] = 'inbox/list_approval_resignation_letter';
+		
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
 	}
 	public function do_approval_resignation_letter()
@@ -6042,4 +6083,130 @@ class Inbox extends Admin_Controller
 		return gmdate("H:i:s", $sum);
 	}
 	//////////End 2026 TM////////
+	public function do_approval_exit_clearance()
+	{
+		// $allinput = $this->input->post();
+		// dumper($allinput);
+		$notes = $this->input->post('notes');
+		$status = $this->input->post('status');
+		$type = $this->input->post('type');
+		$id_section_saved = $this->input->post('id_section_saved');
+		$id_request = $this->input->post('id_request');
+		$id_note = $this->input->post('id_note');
+		$id_exit_clearance = $this->input->post('id_exit_clearance');
+		$id_form = $this->input->post('id_form');
+		$id_section = $this->input->post('id_section');
+		if($type === "approver" && ($notes !== "" || $notes !== null)){
+			$data_note = [
+				'id_exit_clearance' => $id_exit_clearance,
+				'note' => $notes,
+				'created_by' => $this->email,
+				'created_at' => $this->date
+			];
+		} else if($type === "verificator" && ($notes !== "" || $notes !== null)){
+			
+			if($id_note !== "" || $id_note !== null){
+				$data_note = [
+					'id_form' => $id_form,
+					'id_section' => $id_section,
+					'id_Employee' => $this->nik,
+					'note' => $notes,
+					'created_at' => $this->date
+				];
+			}else{
+				$data_note =[
+					'note' => $notes,
+					'updated_at' => $this->date
+				];
+			}
+			
+		}
+		if($type === "verificator"){
+			$data_step = [];
+			$data_form = [];
+			$data_section = [];
+			$app_req = $this->m_global->getRow('*', 'exit_clearance_approval_request',['id_form_request' => $id_request, 'approval_type' => 'EXIT_CLEARANCE']);
+			if(empty($app_req)){
+				$response = [
+					'status' => false,
+					'message' => 'Approval Success.',
+				];
+				return $this->output
+					->set_content_type('application/json')
+					->set_status_header(200)
+					->set_output(json_encode($response));
+			}
+			$app_step = $this->m_global->getRow('*', 'exit_clearance_approval_steps',['id_approval_req' => $app_req['id'], 'id_approver' => $this->nik]);
+			$kolom = $app_step['acted_at'] == null ? 'acted_at' : 'updated_at';
+			if($status === 'revised'){
+				$section_saved = $this->m_global->find('exit_clearance_form_sections', 'id', $id_section_saved)->row_array();
+				$form = $this->m_global->find('form_exit_clearance', 'id', $id_form)->row_array();
+				if(!$section_saved || !$form){
+					$response = [
+						'status' => false,
+						'message' => 'Failed to revise data.',
+					];
+					return $this->output
+						->set_content_type('application/json')
+						->set_status_header(400)
+						->set_output(json_encode($response));
+				}
+				if((int)$section_saved['id'] === 1){
+					$form_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EH')->row_array();
+					// dumper($form_type);
+					$form_eh = $this->m_global->getRow('*','form_exit_clearance', ['id_form_type' => $form_type['id'], 'id_exit_clearance' => $form['id_exit_clearance']]);
+					// dumper($form_eh);
+					$data_form[] = [
+						'id' => $form_eh['id'],
+						'status' => 2,
+						'updated_at' => $this->date
+					];
+				}
+				$data_section = [
+					'id' => $section_saved['id'],
+					'is_saved' => 2,
+					'updated_at' => $this->date
+				];
+				$data_form[] = [
+					'id' => $form['id'],
+					'status' => 2,
+					'updated_at' => $this->date
+				];
+			}
+			$status_num = $status === 'revised' ? 2 : 1;
+			$data_step = ['status' => $status_num, $kolom => $this->date ];
+			$do_verif = $this->inbox_model->verification_approval($data_step,$app_step['id'],$data_form, $data_section, $data_note, $id_note);
+			if($do_verif === false){
+				$response = [
+					'status' => false,
+					'message' => 'Approval Success.',
+				];
+				return $this->output
+					->set_content_type('application/json')
+					->set_status_header(200)
+					->set_output(json_encode($response));
+			}
+		} else if($type === "approver"){
+			$do_approve = $this->inbox_model->approved($id_request,'EXIT_CLEARANCE',$status,$data_note);
+			if($do_approve === false){
+				$response = [
+					'status' => false,
+					'message' => 'Approval Success.',
+				];
+				return $this->output
+					->set_content_type('application/json')
+					->set_status_header(200)
+					->set_output(json_encode($response));
+			}
+		}
+		$response = [
+			'status' => true,
+			'message' => 'Approval Success.',
+		];
+		return $this->output
+			->set_content_type('application/json')
+			->set_status_header(200)
+			->set_output(json_encode($response));
+		
+	}
 }

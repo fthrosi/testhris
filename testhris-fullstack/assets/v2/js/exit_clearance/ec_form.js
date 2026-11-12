@@ -283,7 +283,6 @@ $(document).on('submit', '#formAccordion', function (e) {
             unsavedSections.push(sectionName);
         }
     });
-
     if (unsavedSections.length > 0) {
         Swal.fire({
             icon: 'warning',
@@ -344,6 +343,10 @@ $(document).on('submit', '#formAccordion', function (e) {
 });
 
 $(document).on('click', '.btn-save-section', function () {
+    const nikForm = $(this).data('form-nik');
+    const myNik = $(this).data('mynik');
+    const nameNotes = $('#name-notes').val();
+    const titleNotes = String(nikForm) === String(myNik) ? 'Notes Requestor' : 'Notes Approver - ' + nameNotes;
     const idFormExit = $('#id_form_exit').val();
     const button = $(this);
     const section = button.closest('.wrap-section');
@@ -403,6 +406,9 @@ $(document).on('click', '.btn-save-section', function () {
             return;
         }
     }
+    // formData.forEach(function (value, key) {
+    //     console.log(key + ': ' + value);
+    // });
 
     $.ajax({
         url: base_url + 'form/saveSection',
@@ -428,11 +434,16 @@ $(document).on('click', '.btn-save-section', function () {
                 section.find('.collapse').collapse('hide');
                 $('#saved-' + sectionId).val('1');
                 $('#cancel-' + sectionId).addClass('unsave');
+                $('#label-note-' + sectionId).text(titleNotes);
                 $('#flag-' + sectionId)
-                .removeClass('unsave')
-                .addClass('save')
+                    .removeClass('unsave')
+                    .addClass('save')
+                    .css('background-color', '#1ac236')
+                    .find('i')
+                    .remove();
+                $('#flag-' + sectionId).prepend('<i class="fa-solid fa-check"></i>');
                 $('#flag-text-' + sectionId)
-                .text('Saved');
+                    .text('Submitted');
                 button
                     .removeClass('btn-save-section')
                     .addClass('btn-edit-section')
@@ -581,6 +592,348 @@ $(document).on('click', '#cantAccess', function () {
     });
 });
 $(document).on('click', '#submit-all-ec', function () {
+    const id  = $(this).data('id');
+    const canSubmit = $('#can_submit').val() === '1';
+    if (!canSubmit) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Cannot Submit',
+            text: 'You cannot submit the form because not all required sections have been completed. Please complete all required sections before submitting.',
+            timer: 5000,
+            timerProgressBar: true
+        });
+        return;
+    }
+    $.ajax({
+        url: base_url + 'form/updateExitClearanceStatus',
+        type: 'POST',
+        data: {
+            id_exit_clearance: id,
+            status: 1
+        },
+        beforeSend: function () {
+            Swal.fire({
+                title: 'Saving data...',
+                allowOutsideClick: false,
+                onOpen: function () {
+                    Swal.showLoading();
+                }
+            });
+
+        },
+        success: function (response) {
+            if (response.status) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: response.message,
+                    timer: 5000,
+                    timerProgressBar: true
+                }).then(() => {
+                    //reload this page
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: response.message
+                });
+            }
+        },
+        error: function (xhr) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: xhr.message || 'Failed to update the status. Please try again later.',
+                timer: 5000,
+                timerProgressBar: true
+            });
+        }
+    });
+});
+$(document).on('click', '.btn-save-pic-section', function () {
+    const nikForm = $(this).data('form-nik');
+    const myNik = $(this).data('mynik');
+    const nameNotes = $('#name-notes').val();
+    const titleNotes = String(nikForm) === String(myNik) ? 'Notes Requestor' : 'Notes Approver - ' + nameNotes;
+    const idFormExit = $('#id_form_exit').val();
+    const button = $(this);
+    const section = button.closest('.wrap-section');
+    const sectionId = section.data('section-id');
+    const noteInput = section.find('textarea[name="note-' + sectionId + '"]');
+    const noteValue = noteInput.val();
+    const statusPic = $(this).data('status');
+    const idFormRequest = $(this).data('id-exit');
+
+    const formData = new FormData();
+
+    formData.append('id_form_exit', idFormExit);
+    formData.append('note', noteValue);
+
+    // section ID
+    formData.append('section_id', sectionId);
+    let isValid = true;
+    // ambil semua input dalam section
+    section.find(':input[name]').each(function () {
+
+        const input = $(this);
+
+        // disabled tidak ikut
+        if (input.is(':disabled')) {
+            return;
+        }
+
+
+        // checkbox yang tidak dipilih tidak ikut
+        if (input.is(':checkbox') && !input.is(':checked')) {
+            return;
+        }
+
+        // checkbox yang tidak dicentang tidak ikut
+        if (input.is(':checkbox') && !input.is(':checked')) {
+            return;
+        }
+        const pic = input.closest('.pic-item').length;
+        const value = pic
+            ? input.data('value-compose')
+            : input.val();
+
+        formData.append(
+            input.attr('name'),
+            value
+        );
+    });
+    if(sectionId === 1){
+        const picAssignment = section.find('.pic-assignment');
+        const idParent = picAssignment.data('parent-id');
+        const parentInput = idParent ? section.find('#question-' + idParent) : null;
+        const picLength = section.find('.pic-item').length;
+        if (parentInput && parentInput.length && parentInput.is(':checked') && picLength === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'PIC Assignment Required',
+                text: 'Please select at least one PIC before saving this section.'
+            });
+            return;
+        }
+    }
+    formData.forEach(function (value, key) {
+        console.log(key + ': ' + value);
+    });
+    $.ajax({
+        url: base_url + 'form/checkPic',
+        type: 'POST',
+        data: {
+            id_form_request: idFormRequest,
+            prev_pic_status: statusPic
+        },
+        success: function (response) {
+            swal.close();
+            if(response.status === true){
+                swal.fire({
+                    icon: 'error',
+                    title: 'Failed',
+                    text: response.message,
+                    timer: 5000,
+                    timerProgressBar: true
+                }).then(() => {
+                    location.reload();
+                });
+            }else{
+                $.ajax({
+                    url: base_url + 'form/revisePIC',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    beforeSend: function () {
+                        Swal.fire({
+                            title: 'Saving data...',
+                            allowOutsideClick: false,
+                            onOpen: function () {
+                                Swal.showLoading();
+                            }
+                        });
+
+                    },
+
+                    success: function (response) {
+                        swal.close();
+
+                        if (response.status) {
+                            section.find('.collapse').collapse('hide');
+                            $('#saved-' + sectionId).val('1');
+                            $('#cancel-' + sectionId).addClass('unsave');
+                            $('#label-note-' + sectionId).text(titleNotes);
+                            $('#flag-' + sectionId)
+                                .removeClass('unsave')
+                                .addClass('save')
+                                .css('background-color', '#1ac236')
+                                .find('i')
+                                .remove();
+                            $('#flag-' + sectionId).prepend('<i class="fa-solid fa-check"></i>');
+                            $('#flag-text-' + sectionId)
+                                .text('Submitted');
+                            button
+                                .removeClass('btn-save-section')
+                                .addClass('btn-edit-section')
+                                .text('Edit');
+                            
+                            section.find(':input[name]')
+                                .prop('disabled', true)
+                                .prop('readonly', true);
+                            $('#submit-btn').show();
+                            $('.btn-add-pic').addClass('disabled');
+                            $('.pic-remove').addClass('disabled');
+                        }
+
+                        swal.fire({
+                            icon: response.status ? 'success' : 'error',
+                            title: response.status ? 'Success' : 'Failed',
+                            text: response.message,
+                            timer: 5000,
+                            timerProgressBar: true
+                        });
+                    },
+                    error: function (xhr) {
+                        swal.close();
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: 'Terjadi kesalahan saat menyimpan data.'
+                        });
+                    }
+
+                });
+            }
+        },
+        error: function (xhr) {
+            swal.close();
+            swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: 'Terjadi kesalahan saat menyimpan data.'
+            });
+        }
+
+    });
+});
+
+$(document).on('click', '#submit-revise-ec-btn', function (e) {
+    e.preventDefault();
+    const idFormExit = $('#id_form_exit').val();
+    const idFormRequest = $('#id_form_request').val();
+    const unsavedSections = [];
+
+    $('.wrap-section').each(function () {
+        const section = $(this);
+        const sectionId = section.data('section-id');
+        const sectionName = section.data('section-name');
+        const saved = $('#saved-' + sectionId).val() === '1';
+
+        if (!saved) {
+            unsavedSections.push(sectionName);
+        }
+    });
+    if (unsavedSections.length > 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Failed to submit',
+            text: 'Please save all sections before submitting the form. Unsaved sections: ' + unsavedSections.join(', '),
+            timer: 5000,
+            timerProgressBar: true
+        });
+
+        return;
+    }
+
+
+    $.ajax({
+        url: base_url + 'form/checkStatusSection',
+        type: 'POST',
+        data: {
+            idFormExit: idFormExit
+        },
+        beforeSend: function () {
+            Swal.fire({
+                title: 'Saving Data...',
+                allowOutsideClick: false,
+                onOpen: function () {
+                    Swal.showLoading();
+                }
+            });
+
+        },
+
+        success: function (response) {
+            if(response.status === true){
+                $.ajax({
+                    url: base_url + 'form/SaveRevisionExitClearanceHandover/' + idFormRequest,
+                    type: 'POST',
+                    data: {
+                        idFormExit: idFormExit
+                    },
+                    success: function (response) {
+                        $('#submit-btn').hide();
+                        swal.fire({
+                            icon: response.status ? 'success' : 'error',
+                            title: response.status ? 'Success' : 'Failed',
+                            text: response.message,
+                            timer: 5000,
+                            timerProgressBar: true,
+                            
+                        }).then(() => {
+                            window.location.href = base_url + 'form/home_exit_clearance/' + idFormRequest;
+                        });
+                        
+                    },
+                    error: function (xhr) {
+                        swal.close();
+                        swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: 'Failed to submit the form. Please try again later.',
+                            timer: 5000,
+                            timerProgressBar: true
+                        });
+                    }
+                });
+            }else{
+                swal.fire({
+                    icon: 'error',
+                    title: 'Failed',
+                    text: response.message,
+                    timer: 5000,
+                    timerProgressBar: true
+                }).then(() => {
+                    location.reload();
+                });
+            }
+        },
+        error: function (xhr) {
+            swal.close();
+            swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: 'Failed to submit the form. Please try again later.',
+                timer: 5000,
+                timerProgressBar: true
+            });
+        }
+
+    });
+
+});
+
+$(document).on('click', '.cant-view-ec', function () {
+    Swal.fire({
+        icon: 'warning',
+        title: 'Access Denied',
+        text: 'You cannot view this section because you do not have the necessary permissions. Please contact the administrator for assistance.'
+    });
+});
+$(document).on('click', '#submit-revise-ec', function () {
     const id  = $(this).data('id');
     const canSubmit = $('#can_submit').val() === '1';
     if (!canSubmit) {

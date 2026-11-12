@@ -10898,6 +10898,7 @@ $(document).ready(function () {
     //scrollY: '100%',
     scrollX: true,
     ordering: true,
+    order: [[5, 'asc']],
     searching: true,
     dom:
       "<'row'<'col-sm-6'B><'col-sm-5 text-right'f>>" +

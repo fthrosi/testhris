@@ -49,7 +49,7 @@
         </div>
         <div class="tab-content">
             <div class="tab-pane active" id="inbox_ec">
-                <div class="card-inner">
+                <div class="card-inner" style="padding: 0px;">
                     <div class="scroll">
                         <table class="table table-striped" id="list_approval_tm_cek">
                             <thead>
@@ -64,7 +64,11 @@
                             <tbody>
                             <?php
                                 foreach($header_ec_cek as $key => $value){
-                                $url = base_url('inbox/detail_req_resignation_letter/'.encode_url($value["id"]));
+                                if((int)$value['status_resign'] !== 3){
+                                    $url = base_url('inbox/detail_req_resignation_letter/'.encode_url($value["id"]));
+                                }else{
+                                    $url = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                }
                                 
                                 //////////////////////
                                 echo"
@@ -101,7 +105,12 @@
                             <?php
                                 foreach($header_ec_rejected as $key => $value){
                                 // TIME MANAGEMENT 2.0
-                                $url = base_url('form/detail/EC/'.encode_url($value["id"]));
+                                
+                                if((int)$value['status_resign'] !== 3){
+                                    $url = base_url('form/detail/EC/'.encode_url($value["id"]));
+                                }else{
+                                    $url = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                }
                                 //////////////////////
                                 echo"
                                 <tr class='SearchMDCR'>
@@ -134,8 +143,11 @@
                             <tbody>
                             <?php
                                 foreach($header_ec_approved as $key => $value){
-        
-                                $url = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                if((int)$value['status_resign'] !== 3){
+                                    $url = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                }else{
+                                    $url = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                }
                                 
                                 //////////////////////
                                 echo"

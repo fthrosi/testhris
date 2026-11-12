@@ -808,4 +808,39 @@ class Dashboard_model extends CI_Model {
 		}
         
     }
+	public function getListEc()
+	{
+		$this->db->select("fr.request_number,
+			fr.id,
+			e.complete_name,
+			e.nik,
+			e.position,
+			e.department,
+			e.division,
+			rl.status AS status_rl,
+			rl.submitted_at,
+			rl.last_date,
+			ec.status AS status_ec,
+			(
+				SELECT
+					CASE
+						WHEN COUNT(aps.id) = 0 THEN 0
+						ELSE ROUND(
+							SUM(CASE WHEN aps.status = 1 THEN 1 ELSE 0 END)
+							/ COUNT(aps.id) * 100
+						)
+					END
+				FROM exit_clearance_approval_request ar
+				JOIN exit_clearance_approval_steps aps
+					ON aps.id_approval_req = ar.id
+				WHERE ar.id_form_request = fr.id
+				AND ar.approval_type = 'EXIT_CLEARANCE'
+			) AS overall_progress", false)
+		->from('form_request fr')
+		->join('v_hris_employee_updated e', 'fr.employee_id = e.nik', 'inner')
+		->join('exit_clearance_resignation_Letters rl', 'rl.id_form_request = fr.id', 'inner')
+		->join('exit_clearance ec', 'ec.id_form_request = fr.id', 'inner')
+		->where('rl.status !=', 0);
+		return $this->db->get()->result_array();
+	}
 }

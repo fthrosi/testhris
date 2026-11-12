@@ -17,11 +17,11 @@
             </div>
 
             <h1 class="qr-result-success-title">
-                Scan Berhasil
+                Scan Successful
             </h1>
 
             <p class="qr-result-success-description">
-                Resignation Letter berhasil ditemukan.
+                Resignation Letter has been found.
             </p>
 
         </div>
@@ -87,7 +87,7 @@
                     <div class="qr-result-info-content">
 
                         <span class="qr-result-info-label">
-                            Nama
+                            Name
                         </span>
 
                         <span class="qr-result-info-value">
@@ -131,7 +131,7 @@
                     <div class="qr-result-info-content">
 
                         <span class="qr-result-info-label">
-                            Tanggal Submit
+                            Submitted Date
                         </span>
 
                         <span class="qr-result-info-value">

@@ -96,28 +96,28 @@ class Home_model extends CI_Model {
 	public function getMyRequestEC()
 	{
 		$this->db->select('
-			form_request.*,
+			fr.*,
 			rl.status AS rl_status,
 			ec.status AS ec_status
 		');
 
-		$this->db->from('form_request');
+		$this->db->from('form_request fr');
 
 		$this->db->join(
 			'exit_clearance_resignation_letters rl',
-			'rl.id_form_request = form_request.id',
-			'left'
+			'rl.id_form_request = fr.id',
+			'right'
 		);
 
 		$this->db->join(
 			'exit_clearance ec',
-			'ec.id_form_request = form_request.id',
-			'left'
+			'ec.id_form_request = fr.id',
+			'right'
 		);
 
-		$this->db->where('form_request.employee_id', $this->nik);
-		$this->db->where('form_request.form_type', 'EC');
-		$this->db->order_by('form_request.created_at', 'DESC');
+		$this->db->where('fr.employee_id', $this->nik);
+		$this->db->where('fr.form_type', 'EC');
+		$this->db->order_by('fr.created_at', 'DESC');
 
 		return $this->db->get()->result_array();
 	}

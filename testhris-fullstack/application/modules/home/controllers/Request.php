@@ -57,7 +57,7 @@ class Request extends Admin_Controller
 		/////////////////////////END TIME MANAGEMENT 2024////////////////////////////
 
 		$data['header_ec'] = $this->home_model->getMyRequestEC();
-		
+		// dumper($data['header_ec']);
 		
 		foreach ($data['header_ec'] as &$row) {
 
@@ -120,7 +120,6 @@ class Request extends Admin_Controller
 		}
 
 		unset($row);
-		// dumper($data['header_ec']);
 		$data['content'] = 'home/list_request';
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
 	}

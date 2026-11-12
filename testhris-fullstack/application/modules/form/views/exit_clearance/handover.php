@@ -5,7 +5,7 @@
 >
 <?php
     $id = encode_url($form_request['id'] ?? '');
-    $canEdit = isset($form_handover['status']) && (int)$form_handover['status'] === 0;
+    $canEdit = isset($form_handover['status']) && ((int)$form_handover['status'] === 0 || (int)$form_handover['status'] === 2);
     $save = isset($form_handover['status']) && (int)$form_handover['status'] === 1;
     $select_length = count($select_pic);
     $pic_length = count($pic);
@@ -14,6 +14,7 @@
 <input type="hidden" id="id_form_request" value="<?= $id ?? ''; ?>">
 <input type="hidden" id="id_handover" value="<?= $handover['id'] ?? ''; ?>">
 <input type="hidden" id="pic_length" value="<?= $pic_length ?>">
+<input type="hidden" id="ec_status" value="<?= $ec_status ?? ''; ?>">
 
 <div class="wrap-submit-rl">
     <div class="title-section-resign">
@@ -149,6 +150,9 @@
         <div class="wrap-btn-submit">
             <?php if((int)$header['status'] === 0): ?>
                 <button type="button" id="<?= $save ? 'update-handover' : 'submit-btn-handover' ?>" data-id="<?= $form_handover['id'] ?>" class="btn btn-success"><?= $save ? 'Edit' : 'Submit' ?></button>
+            <?php endif; ?>
+            <?php if((int)$header['status'] !== 0 && $canEdit): ?>
+                <button type="button" id="submit-revise-btn-handover" data-id="<?= $form_handover['id'] ?>" class="btn btn-success">Submit</button>
             <?php endif; ?>
            <button type="button" id="back-btn" class="btn btn-danger">Back</button> 
         </div>

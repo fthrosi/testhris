@@ -130,6 +130,9 @@
                     <?php if((int)$header['status'] === 0): ?>
                         <button type="<?= $save ? 'button' : 'submit' ?>" id="<?= $save ? 'update-interview' : 'submit-btn-interview' ?>" data-id="<?= $form_exit['id'] ?>" class="btn btn-success"><?= $save ? 'Edit' : 'Submit' ?></button>
                     <?php endif; ?>
+                    <?php if((int)$header['status'] !== 0 && (int)$form_exit['status'] === 2): ?>
+                        <button type="submit" id="submit-btn-interview" data-id="<?= $form_exit['id'] ?>" class="btn btn-success">Submit</button>
+                    <?php endif; ?>
                     <button type="button" id="back-btn" class="btn btn-danger">Back</button> 
                 </div>
             </form>

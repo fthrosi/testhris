@@ -1,0 +1,10 @@
+.table-data thead th {
+    border-bottom: none;
+}
+.disabled {
+    background-color: #fafafa;
+    color: #526484;
+}
+textarea {
+    border-radius: 0.5rem;
+}
