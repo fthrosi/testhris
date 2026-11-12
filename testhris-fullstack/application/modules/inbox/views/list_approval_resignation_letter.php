@@ -89,7 +89,7 @@
                 </div>
             </div>
             <div class="tab-pane" id="inbox_ec_reject">
-                <div class="card-inner">
+                <div class="card-inner" style="padding: 0px;">
                     <div class="scroll">
                         <table class="table table-striped" id="list_approval_tm_rejected">
                             <thead>
@@ -129,7 +129,7 @@
                 </div>
             </div>
             <div class="tab-pane" id="inbox_ec_approved">
-                <div class="card-inner">
+                <div class="card-inner" style="padding: 0px;">
                         <table class="table table-striped" id="list_approval_tm_approved">
                             <thead>
                                 <tr>

@@ -659,6 +659,22 @@
             </li>
         </ul>
         <?php } ?>
+        <?php
+        $roles = $this->session->userdata('exit_clearance_roles');
+        $is_hr = in_array('HRV', $roles);   
+        if($is_hr):?>
+            <div class="nk-ibx-nav-head">
+                <h6 class="title">Exit Clearance</h6>
+            </div>
+            <ul class="nk-ibx-label">
+                <li <?php echo ($this->uri->segment(2) == 'dashboardEC') ? 'class="active"' : ''; ?>>
+                    <a href="<?= site_url('dashboard/dashboardEC'); ?>">
+                        <span class="nk-ibx-label-dot dot dot-xl dot-label bg-danger"></span>
+                        <span class="nk-ibx-label-text">Tracking Exit Clearance</span>
+                    </a>
+                </li>
+            </ul>
+        <?php endif; ?>
         <ul>
             <li class="nk-ibx-menu-item">
             </li>

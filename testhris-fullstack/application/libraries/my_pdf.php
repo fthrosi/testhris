@@ -3,7 +3,7 @@
 require_once(dirname(__FILE__) . '/tcpdf/tcpdf.php');
 require_once(dirname(__FILE__).'/tcpdf/tcpdf_barcodes_2d.php');
 
-class my_pdf extends TCPDF
+class My_pdf extends TCPDF
 {
    protected $headerType = 'default';
 

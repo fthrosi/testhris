@@ -995,15 +995,18 @@ class Form extends Admin_Controller
 				'status' => 1,
 				'created_at' => date('Y-m-d H:i:s'),
 			];
+			$nik_exist = [];
 			$hand_exist = $this->m_global->find('exit_clearance_handovers', 'id_form', $exit_form['id'])->row_array();
-			$pic_exist = $this->m_global->find('exit_clearance_pic_handovers', 'id_handover', $hand_exist['id'] ?? null)->result_array();
-			$nik_exist = array_column($pic_exist, 'id_employee');
+			if(!empty($hand_exist)){
+				$pic_exist = $this->m_global->find('exit_clearance_pic_handovers', 'id_handover', $hand_exist['id'] ?? null)->result_array();
+				$nik_exist = array_column($pic_exist, 'id_employee');
+			}
 			$nik_current = [];
 			foreach($pic as $id_question => $value){
 				foreach($value as $v){
 					[$name,$nik,$email] = explode('-', $v);
 					$nik_current[] = $nik;
-					if(!in_array($nik, $nik_exist)){
+					if(!in_array($nik, $nik_exist) && !empty($nik_exist)){
 						// dumper("masuk sini");
 						$pic_data[] = [
 								'id_handover' =>'',
@@ -1014,11 +1017,21 @@ class Form extends Admin_Controller
 								'status' => 0,
 								'created_at' => date('Y-m-d H:i:s'),
 						];
+					}else if(empty($nik_exist)){
+						$pic_data[] = [
+								'id_handover' =>'',
+								'id_employee' => $nik,
+								'name' => $name,
+								'nik' => $nik,
+								'email' => $email,
+								'status' => 0,
+								'created_at' => date('Y-m-d H:i:s'),
+						];
+
 					}
 					// dumper("test");
 				}
 			}
-
 			// PIC existing yang NIK-nya tidak ada di form → delete
 			foreach ($pic_exist as $existing) {
 				if (!in_array($existing['id_employee'], $nik_current)) {
@@ -1042,6 +1055,7 @@ class Form extends Admin_Controller
 				'created_at' => date('Y-m-d H:i:s'),
 			];
 		}
+		
 		$save = $this->form_model->saveDataSection($data, $ans ?? [], $pic_data ?? [], $data_handover ?? [], $data_note ?? [], $id_exit,null, $handover_form ?? [], $pic_delete ?? []);
 		if($save === false){
 			return $this->output
@@ -1111,6 +1125,9 @@ class Form extends Admin_Controller
 					'status' => false,
 					'message' => 'Failed to save exit interview data.',
 				]));
+		}
+		if((int)$exit_form['status'] !== 0){
+			$this->getItemExitInterview($exit_form['id_exit_clearance']);
 		}
 		return $this->output
 			->set_content_type('application/json')
@@ -6749,521 +6766,6 @@ class Form extends Admin_Controller
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
 
 	}
-	public function getItemExitClearance($id_exit_clearance)
-	{
-		$getNikRequestor = $this->form_model->getNikRequestorNik($id_exit_clearance);
-		$employee = $this->getEmployeeInfoExitClearance($getNikRequestor['nik']);
-		$data['employee'] = $employee;
-		// 1. Ambil form type khusus Exit Clearance (EC)
-		$form_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EC')->row_array();
-
-		if (empty($form_type)) {
-			return $this->output
-				->set_content_type('application/json')
-				->set_status_header(404)
-				->set_output(json_encode([
-					'status' => false,
-					'message' => 'Form type not found.',
-				]));
-		}
-
-		// 3. Ambil data Form Exit Clearance Master
-		$data['form_exit'] = $this->m_global->getRow('*', 'form_exit_clearance', [
-			'id_exit_clearance' => $id_exit_clearance,
-			'id_form_type'      => $form_type['id'],
-		]);
-
-		if (empty($data['form_exit'])) {
-			return $this->output
-				->set_content_type('application/json')
-				->set_status_header(404)
-				->set_output(json_encode([
-					'status' => false,
-					'message' => 'Form exit clearance not found.',
-				]));
-		}
-
-		// 4. Ambil Section & Questions
-		$section = $this->m_global->find('exit_clearance_section_forms', 'id_form_type', $form_type['id'])->result_array();
-		$array_section_id = array_column($section, 'id');
-
-		$questions = $this->form_model->getQuestions($form_type['id'], $array_section_id);
-		$array_question_id = array_column($questions, 'id');
-
-		// 5. Ambil Jawaban (Answers) & Status Section
-		$answers = $this->m_global->find('exit_clearance_answers', 'id_form', $data['form_exit']['id'])->result_array();
-		$save_section = $this->m_global->find('exit_clearance_form_sections', 'id_exit_form', $data['form_exit']['id'])->result_array();
-
-		$al = $this->form_model->getApprovalList($data['form_exit']['id_exit_clearance']);
-		foreach ($al as $a) {
-			if(isset($a['id_section']) && (int)$a['id_section'] === 1){
-				$approval_list[$a['id_section']][] = $a;
-			}else if(isset($a['id_section'])){
-				$approval_list[$a['id_section']] = $a;
-			}else{
-				$a['position'] = decrypt($a['position']);
-				$a['division'] = decrypt($a['division']);
-				$a['name'] = decrypt($a['name']);
-				$approval[] = $a;
-			}
-		}
-		// dumper($approval_list);
-		// Map Answers ke Question ID
-		$answers_map = [];
-		foreach ($answers as $a) {
-			$answers_map[$a['id_question']] = $a;
-		}
-
-		// Map Questions (Flat Structure)
-		$question_map = [];
-		foreach ($questions as $q) {
-			$id_section = $q['id_form_section'];
-			$q_id = $q['id'];
-			$q['answer']       = isset($answers_map[$q_id]['answer']) ? $answers_map[$q_id]['answer'] : '';
-			$q['jumlah']       = isset($answers_map[$q_id]['jumlah']) ? $answers_map[$q_id]['jumlah'] : '';
-			if(isset($approval_list[$id_section]) && !isset($approval_list[$id_section][0])){
-				$q['tanggal_clearance'] = $approval_list[$id_section]['tanggal_clearance'];
-				$q['receiver_name'] = decrypt($approval_list[$id_section]['name']);
-				$q['receiver_status'] = $approval_list[$id_section]['status'];
-			}
-			if($q['id_parrent_question'] === null || $q['id_parrent_question'] === ''){
-				$question_map[$q_id] = $q;
-			}
-		}
-
-		// 6. Inisialisasi Struktur Data Form Per Section
-		$data['form'] = [];
-		foreach ($section as $s) {
-			$data['form'][$s['id']] = [
-				'id'        => $s['id'],
-				'name'      => $s['name'],
-				'questions' => [],
-			];
-		}
-
-		// Grouping Questions Langsung ke Section Tanpa Parent-Child (Flat)
-		foreach ($question_map as $q) {
-			$sec_id = $q['id_form_section'];
-			if (isset($data['form'][$sec_id])) {
-				if (isset($approval_list[$sec_id][0]) && is_array($approval_list[$sec_id][0])) {
-					foreach ($approval_list[$sec_id] as $p) {
-						// Clone question untuk tiap PIC
-						$q_pic = $q;
-						$q_pic['tanggal_clearance'] = $p['tanggal_clearance'] ?? "";
-						$q_pic['receiver_name'] = decrypt($p['name']) ?? "";
-						$q_pic['receiver_status'] = $p['status'] ?? ""; 
-						
-						$data['form'][$sec_id]['questions'][] = $q_pic;
-					}
-				} else {
-					// Untuk Section 2, 3, 4, 5 (Baris Biasa)
-					$data['form'][$sec_id]['questions'][] = $q;
-				}
-			}
-		}
-
-		// Urutkan Pertanyaan Berdasarkan Sequence
-		foreach ($data['form'] as &$sec) {
-			usort($sec['questions'], function ($a, $b) {
-				return (int) ($a['sequence'] ?? 0) <=> (int) ($b['sequence'] ?? 0);
-			});
-		}
-		unset($sec);
-
-		if (isset($data['form'][6]) && isset($data['form'][7])) {
-			// 1. Ubah nama section 6 menjadi "HR"
-			$data['form'][6]['name'] = 'HR';
-
-			// 2. Gabungkan pertanyaan dari section 7 ke section 6
-			$data['form'][6]['questions'] = array_merge(
-				$data['form'][6]['questions'],
-				$data['form'][7]['questions']
-			);
-
-			// 3. Hapus section 7 dari array agar tidak tercetak dua kali
-			unset($data['form'][7]);
-		}
-		$approval[] =[
-			'tanggal_clearance' => $employee['tanggal_submit'],
-			'name' => $employee['name'],
-			'status' => 1,
-			'id_section' => 0,
-			'position' => $employee['position'],
-			'division' => $employee['division'],
-		];
-		$approval_mapped = [
-			'pemohon' => null,
-			'kaldiv'  => null,
-			'hr_head' => null,
-		];
-		$file_path = FCPATH . 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/qrcode/';
-		if (!is_dir($file_path)) {
-			mkdir($file_path, 0777, true);
-		}
-
-		//create qr code
-		$encrypted_id = encryptURL($id_exit_clearance);
-		$path = 'assets/documents/document_resignation/'. $data['employee']['nik'].'/exit_clearance/qrcode/qr-code-requestor.png';
-		$generate_qr_code = $this->generate_qr_code_ec($path, $encrypted_id, $data['employee'], 'qr-code-requestor.png');
-		// dumper($generate_qr_code);
-		foreach ($approval as $item) {
-			if ((string)$item['id_section'] === '0') {
-				$sign_path = FCPATH . $path;
-				if(file_exists($sign_path)) {
-					$item['sign_img'] = $sign_path;
-				} else {
-					$item['sign_img'] = null;
-				}
-				$approval_mapped['pemohon'] = $item;
-			} elseif (stripos($item['position'], 'HR') !== false || stripos($item['position'], 'HRGA') !== false) {
-				$sign_path = FCPATH . 'assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/qr-code-hrhead.png';
-				if(file_exists($sign_path)) {
-					$item['sign_img'] = $sign_path;
-				} else {
-					$item['sign_img'] = null;
-				}
-				$approval_mapped['hr_head'] = $item;
-			} else {
-				$sign_path = FCPATH . 'assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/qr-code-kadiv.png';
-				if(file_exists($sign_path)) {
-					$item['sign_img'] = $sign_path;
-				} else {
-					$item['sign_img'] = null;
-				}
-				$approval_mapped['kaldiv'] = $item;
-			}
-		}
-		// dumper($data['form']);
-		$data['approval'] = $approval_mapped;
-
-		//generate pdf exit clearance
-		$ec_view = 'print_req_exit_clearance';
-		$ec_path = 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/';
-		$generate_ec_pdf = $this->generatePdfEc($ec_view, $ec_path, $data,'exit_clearance', 'exit_clearance.pdf');
-		return true;
-	}
-	public function getItemExitInterview($id_exit_clearance)
-	{
-		$getNikRequestor = $this->form_model->getNikRequestorNik($id_exit_clearance);
-		$employee = $this->getEmployeeInfoExitClearance($getNikRequestor['nik']);
-		$data['employee'] = $employee;
-		$form_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EI')->row_array();
-		
-		if (empty($form_type)) {
-			return $this->output
-				->set_content_type('application/json')
-				->set_status_header(404)
-				->set_output(json_encode([
-					'status' => false,
-					'message' => 'Form type not found.',
-				]));
-		}
-		$data['form_exit'] = $this->m_global->getRow('*', 'form_exit_clearance', [
-			'id_exit_clearance' => $id_exit_clearance,
-			'id_form_type' => $form_type['id'],
-		]);
-		$question = $this->form_model->getQuestions($form_type['id']);
-		$array_id = array_column($question, 'id');
-		$question_translations = $this->form_model->getQuestionTranslation($array_id);
-		
-		$option = $this->form_model->getOptions($array_id);
-		$option_id = array_column($option, 'id');
-		$option_translations = $this->form_model->getOptionTranslation($option_id);
-		$question_map = [];
-		if(!empty($data['form_exit'])){
-			$answers = $this->m_global->find('exit_clearance_answers', 'id_form', $data['form_exit']['id'])->result_array();
-		}else{
-			$answers = [];
-		}
-		
-		foreach ($question as $q) {
-			$q['options'] = [];
-			$q['children'] = [];
-			$question_map[$q['id']] = $q;
-		}
-		foreach ($question_translations as $qt) {
-			$question_id = $qt['id_question'];
-			if (isset($question_map[$question_id])) {
-				$question_map[$question_id]['translation'] = $qt['question'];
-			}
-		}
-		// dumper($question_map);
-		foreach ($option as $o) {
-			$option_map[$o['id']] = $o;
-			$option_map[$o['id']]['translation'] = '';
-		}
-		foreach ($option_translations as $ot) {
-			$option_id = $ot['id_option'];
-			if (isset($option_map[$option_id])) {
-				$option_map[$option_id]['translation'] = $ot['title'];
-			}
-		}
-		foreach ($option_map as $o) {
-			$question_id = $o['id_question'];
-			if (isset($question_map[$question_id])) {
-				$question_map[$question_id]['options'][] = $o;
-			}
-		}
-		// dumper($question_map);
-		foreach ($answers as $a){
-			$question_id = $a['id_question'];
-			if (isset($question_map[$question_id])) {
-				$question_map[$question_id]['answer'] = $a['answer'];
-			}
-		}
-		$parents = [];
-		$children = [];
-		foreach ($question_map as $question_item) {
-			$parent_id = $question_item['id_parrent_question'] ?? null;
-			if ($parent_id === null || $parent_id === '') {
-				$parents[$question_item['id']] = $question_item;
-			} else {
-				$children[] = $question_item;
-			}
-		}
-		foreach ($children as $child) {
-			$parent_id = $child['id_parrent_question'];
-			if (isset($parents[$parent_id])) {
-				$parents[$parent_id]['children'][] = $child;
-			} else {
-				$parents[$child['id']] = $child;
-			}
-		}
-		
-		uasort($parents, function ($a, $b) {
-			return (int) $a['sequence'] <=> (int) $b['sequence'];
-		});
-	
-		foreach ($parents as &$parent) {
-			if (!empty($parent['children'])) {
-				usort($parent['children'], function ($a, $b) {
-					return (int) $a['sequence'] <=> (int) $b['sequence'];
-				});
-			}
-		}
-		unset($parent);
-		foreach ($parents as $parent_question) {
-			$data['form'][$parent_question['id']] = $parent_question;
-		}
-
-		
-		//dumper($data['form']);
-		$encrypted_id = encryptURL($id_exit_clearance);
-		$path = 'assets/documents/document_resignation/'. $data['employee']['nik'].'/exit_clearance/qrcode/qr-code-requestor-ei.png';
-		$generate_qr_code = $this->generate_qr_code_ec($path, $encrypted_id, $data['employee'], 'qr-code-requestor-ei.png');
-
-		$sign_path = FCPATH . $path;
-		if(file_exists($sign_path)) {
-			$data['employee']['sign_img'] = $sign_path;
-		} else {
-			$data['employee']['sign_img'] = null;
-		}
-
-		//generate pdf exit clearance
-		$ec_view = 'print_req_exit_interview';
-		$ec_path = 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/';
-		$generate_ec_pdf = $this->generatePdfEc($ec_view, $ec_path, $data,'exit_interview', 'exit_interview.pdf');
-		return true;
-	}
-	public function getItemExitHandover($id_exit_clearance)
-	{
-		$getNikRequestor = $this->form_model->getNikRequestorNik($id_exit_clearance);
-		$employee = $this->getEmployeeInfoExitClearance($getNikRequestor['nik']);
-		$data['employee'] = $employee;
-		// 1. Ambil form type khusus Exit Clearance (EC)
-		$form_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EC')->row_array();
-
-		if (empty($form_type)) {
-			return $this->output
-				->set_content_type('application/json')
-				->set_status_header(404)
-				->set_output(json_encode([
-					'status' => false,
-					'message' => 'Form type not found.',
-				]));
-		}
-
-		// 3. Ambil data Form Exit Clearance Master
-		$data['form_exit'] = $this->m_global->getRow('*', 'form_exit_clearance', [
-			'id_exit_clearance' => $id_exit_clearance,
-			'id_form_type'      => $form_type['id'],
-		]);
-
-		if (empty($data['form_exit'])) {
-			return $this->output
-				->set_content_type('application/json')
-				->set_status_header(404)
-				->set_output(json_encode([
-					'status' => false,
-					'message' => 'Form exit clearance not found.',
-				]));
-		}
-		// dumper($data['form_exit']);
-		$handover = $this->m_global->find('exit_clearance_handovers', 'id_form', $data['form_exit']['id'])->row_array();
-		$pic_hand = $this->form_model->getEmployeeAssign($handover['id'], 1);
-		$data['pic'] = $pic_hand ?? [];
-
-		$al = $this->form_model->getApprovalList($data['form_exit']['id_exit_clearance']);
-		foreach ($al as $a) {
-			if(isset($a['id_section']) && (int)$a['id_section'] === 1){
-				$approval_list[$a['id_section']][] = $a;
-			}else if(isset($a['id_section'])){
-				$approval_list[$a['id_section']] = $a;
-			}else{
-				$a['position'] = decrypt($a['position']);
-				$a['division'] = decrypt($a['division']);
-				$a['name'] = decrypt($a['name']);
-				$approval[] = $a;
-			}
-		}
-		$approval[] =[
-			'tanggal_clearance' => $employee['tanggal_submit'],
-			'name' => $employee['name'],
-			'status' => 1,
-			'id_section' => 0,
-			'position' => $employee['position'],
-			'division' => $employee['division'],
-		];
-		$approval_mapped = [
-			'pemohon' => null,
-			'kaldiv'  => null,
-			'hr_head' => null,
-		];
-		$file_path = FCPATH . 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/qrcode/';
-		if (!is_dir($file_path)) {
-			mkdir($file_path, 0777, true);
-		}
-
-		//create qr code
-		$encrypted_id = encryptURL($id_exit_clearance);
-		$path = 'assets/documents/document_resignation/'. $data['employee']['nik'].'/exit_clearance/qrcode/qr-code-requestor-eh.png';
-		$generate_qr_code = $this->generate_qr_code_ec($path, $encrypted_id, $data['employee'], 'qr-code-requestor-eh.png');
-		// dumper($generate_qr_code);
-		foreach ($approval as $item) {
-			if ((string)$item['id_section'] === '0') {
-				$sign_path = FCPATH . $path;
-				if(file_exists($sign_path)) {
-					$item['sign_img'] = $sign_path;
-				} else {
-					$item['sign_img'] = null;
-				}
-				$approval_mapped['pemohon'] = $item;
-			} elseif (stripos($item['position'], 'HR') !== false || stripos($item['position'], 'HRGA') !== false) {
-				$sign_path = FCPATH . 'assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/qr-code-hrhead-eh.png';
-				if(file_exists($sign_path)) {
-					$item['sign_img'] = $sign_path;
-				} else {
-					$item['sign_img'] = null;
-				}
-				$approval_mapped['hr_head'] = $item;
-			} else {
-				$sign_path = FCPATH . 'assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/qr-code-kadiv-eh.png';
-				if(file_exists($sign_path)) {
-					$item['sign_img'] = $sign_path;
-				} else {
-					$item['sign_img'] = null;
-				}
-				$approval_mapped['kaldiv'] = $item;
-			}
-		}
-		// dumper($data['form']);
-		$data['approval'] = $approval_mapped;
-
-		//generate pdf exit clearance
-		$ec_view = 'print_req_exit_handover';
-		$ec_path = 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/';
-		$generate_ec_pdf = $this->generatePdfEc($ec_view, $ec_path, $data,'exit_handover', 'exit_handover.pdf');
-		return true;
-
-	}
-	private function getEmployeeInfoExitClearance($employee_id)
-	{
-		$employee = $this->form_model->getEmployeeExitClearance($employee_id);
-		$period_of_work = (new DateTime(decrypt($employee['join_date'])))->diff(new DateTime($employee['last_working_date']));
-		$period_of_work_years = $period_of_work->y;
-		$period_of_work_months = $period_of_work->m;
-		$period_of_work_days = $period_of_work->d;
-		$period_of_work_formatted = $period_of_work_years . ' Tahun, ' . $period_of_work_months . ' Bulan, ' . $period_of_work_days . ' Hari';
-		$data = [
-			'name' => decrypt($employee['complete_name']),
-			'position' => decrypt($employee['position']),
-			'division' => decrypt($employee['division']),
-			'phone'  => decrypt($employee['phone_number']),
-			'join_date' => decrypt($employee['join_date']),
-			'last_date' => $employee['last_working_date'],
-			'nik' => $employee['nik'],
-			'period_of_work' => $period_of_work_formatted,
-			'tanggal_submit' => $employee['tanggal_submit'],
-		];
-		return $data;
-	}
-	private function generate_qr_code_ec($output_path, $encrypted_id, $employee,$filename)
-	{
-			$path = FCPATH . $output_path;
-			if(file_exists($path)){
-				unlink($path);
-			}
-			$config['cacheable']    = true;
-			$config['cachedir']     = './assets/';
-			$config['errorlog']     = './assets/';
-			$config['imagedir']     = './assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/';
-			$config['imagelogo']    = './assets/images/IBS.png';
-			$config['quality']      = true;
-			$config['size']         = '1024';
-			$config['black']        = array(224, 255, 255);
-			$config['white']        = array(70, 130, 180);
-			$this->ciqrcode->initialize($config);
-			$image_name 			= $filename;
-			$params['data'] 		= base_url() . 'form/Qrrl/infoEC/' . $encrypted_id;
-			$params['size'] 		= 10;
-			$params['savename'] 	= FCPATH . $config['imagedir'] . $image_name;
-			$params['logo'] 		= FCPATH . $config['imagelogo'];
-			$params['imagetmp'] 	= $config['imagedir'];
-			$this->ciqrcode->generate($params);
-		return true;
-	}
-	private function generatePdfEc($path, $file_path, $data, $header_type, $filename = null)
-	{
-		$html = $this->load->view('form/print_out/'.$path, $data, true);
-
-		// 3. Inisialisasi TCPDF (Sama persis seperti gaya di sistem kamu)
-		$pdf = new my_pdf(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
-
-		// Matikan Header & Footer garis bawaan TCPDF agar tidak merusak layout
-		$pdf->setHeaderType($header_type);
-		$pdf->setPrintHeader(true);
-		$pdf->setPrintFooter(false);
-
-		// Set Margin Kertas (Kiri: 10mm, Atas: 10mm, Kanan: 10mm)
-		$pdf->SetMargins(10, 35, 10);
-		$pdf->SetHeaderMargin(5);
-		$pdf->SetAutoPageBreak(true, 10);
-
-		// Tambah Halaman A4 Portrait
-		$pdf->AddPage('P', 'A4');
-
-		// Set Font standar
-		$pdf->SetFont('helvetica', '', 9);
-
-		// Write HTML: Cetak seluruh view HTML sekaligus dari posisi X=10mm, Y=10mm
-		$pdf->writeHTMLCell(
-			190,
-			0,
-			10,
-			35,
-			$html,
-			0,
-			1,
-			false,
-			true,
-			'L'
-		);
-		$path_out = FCPATH . $file_path . $filename;
-		if(file_exists($path_out)){
-			unlink($path_out);
-		}
-		$pdf->Output($path_out, 'F');
-	}
 	public function submitReviseSection()
 	{
 		$section_id = $this->input->post('section_id');
@@ -7633,6 +7135,7 @@ class Form extends Admin_Controller
 					'message' => 'Failed to update approval step.',
 				]));
 		}
+		$this->getItemExitClearance($form_exit['id_exit_clearance']);
 		return $this->output
 			->set_content_type('application/json')
 			->set_status_header(200)
@@ -7719,7 +7222,7 @@ class Form extends Admin_Controller
 					'message' => 'Failed to update approval step.',
 				]));
 		}
-
+		$this->getItemExitHandover($form_exit['id_exit_clearance']);
 		return $this->output
 			->set_content_type('application/json')
 			->set_status_header(200)
@@ -7794,7 +7297,11 @@ class Form extends Admin_Controller
 		$last_step = array_values(array_filter($app_step, function ($app) {
 			return (int)$app['sequence'] === 4;
 		}));
-		if($last_step[0]['id_approver'] === $this->emp_nik){
+		$my_approver = array_values(array_filter($app_step, function ($app) {
+			return (string)$app['id_approver'] === (string)$this->emp_nik;
+		}));
+		$is_approver = $my_approver[0]['unit_code'] === null || $my_approver[0]['unit_code'] === '' || empty($my_approver[0]['unit_code']) ? true : false; 
+		if((string)$last_step[0]['id_approver'] === (string)$this->emp_nik){
 				$last_approver = true;
 		}
 		$approval = $this->form_model->approval_ec($form['id'], $status, $notes, $data_update ?? [],  $data_sec_update ?? [], $last_approver ?? null);
@@ -7808,6 +7315,23 @@ class Form extends Admin_Controller
 				->set_status_header(400)
 				->set_output(json_encode($response));
 		}
+		if($is_approver && $status === 'Approved'){
+			$role_approver = $this->m_global->getRow('*','exit_clearance_division_pic', [
+				'id_employee' => $app_ec[0]['id'],
+				'id_ec_division' => 7,
+				'start_date <=' => date('Y-m-d'),
+				'end_date >=' => date('Y-m-d')
+				]);
+			if(!empty($role_approver)){
+				$filename_ec = 'qr-code-hrhead.png';
+				$filename_eh = 'qr-code-hrhead-eh.png';
+			}else{
+				$filename_ec = 'qr-code-kadiv.png';
+				$filename_eh = 'qr-code-kadiv-eh.png';
+			}
+			$this->getItemExitClearance($exit_clearance['id'], $filename_ec);
+			$this->getItemExitHandover($exit_clearance['id'], $filename_eh);
+		}
 		$response = [
 			'status' => true,
 			'message' => 'Approval Success.',
@@ -7816,6 +7340,521 @@ class Form extends Admin_Controller
 			->set_content_type('application/json')
 			->set_status_header(200)
 			->set_output(json_encode($response));
+	}
+	public function getItemExitClearance($id_exit_clearance, $filename = 'qr-code-requestor.png')
+	{
+		$getNikRequestor = $this->form_model->getNikRequestorNik($id_exit_clearance);
+		$employee = $this->getEmployeeInfoExitClearance($getNikRequestor['nik']);
+		$data['employee'] = $employee;
+		// 1. Ambil form type khusus Exit Clearance (EC)
+		$form_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EC')->row_array();
+
+		if (empty($form_type)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Form type not found.',
+				]));
+		}
+
+		// 3. Ambil data Form Exit Clearance Master
+		$data['form_exit'] = $this->m_global->getRow('*', 'form_exit_clearance', [
+			'id_exit_clearance' => $id_exit_clearance,
+			'id_form_type'      => $form_type['id'],
+		]);
+
+		if (empty($data['form_exit'])) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Form exit clearance not found.',
+				]));
+		}
+
+		// 4. Ambil Section & Questions
+		$section = $this->m_global->find('exit_clearance_section_forms', 'id_form_type', $form_type['id'])->result_array();
+		$array_section_id = array_column($section, 'id');
+
+		$questions = $this->form_model->getQuestions($form_type['id'], $array_section_id);
+		$array_question_id = array_column($questions, 'id');
+
+		// 5. Ambil Jawaban (Answers) & Status Section
+		$answers = $this->m_global->find('exit_clearance_answers', 'id_form', $data['form_exit']['id'])->result_array();
+		$save_section = $this->m_global->find('exit_clearance_form_sections', 'id_exit_form', $data['form_exit']['id'])->result_array();
+
+		$al = $this->form_model->getApprovalList($data['form_exit']['id_exit_clearance']);
+		foreach ($al as $a) {
+			if(isset($a['id_section']) && (int)$a['id_section'] === 1){
+				$approval_list[$a['id_section']][] = $a;
+			}else if(isset($a['id_section'])){
+				$approval_list[$a['id_section']] = $a;
+			}else{
+				$a['position'] = decrypt($a['position']);
+				$a['division'] = decrypt($a['division']);
+				$a['name'] = decrypt($a['name']);
+				$approval[] = $a;
+			}
+		}
+		// dumper($approval_list);
+		// Map Answers ke Question ID
+		$answers_map = [];
+		foreach ($answers as $a) {
+			$answers_map[$a['id_question']] = $a;
+		}
+
+		// Map Questions (Flat Structure)
+		$question_map = [];
+		foreach ($questions as $q) {
+			$id_section = $q['id_form_section'];
+			$q_id = $q['id'];
+			$q['answer']       = isset($answers_map[$q_id]['answer']) ? $answers_map[$q_id]['answer'] : '';
+			$q['jumlah']       = isset($answers_map[$q_id]['jumlah']) ? $answers_map[$q_id]['jumlah'] : '';
+			if(isset($approval_list[$id_section]) && !isset($approval_list[$id_section][0])){
+				$q['tanggal_clearance'] = $approval_list[$id_section]['tanggal_clearance'];
+				$q['receiver_name'] = decrypt($approval_list[$id_section]['name']);
+				$q['receiver_status'] = $approval_list[$id_section]['status'];
+			}
+			if($q['id_parrent_question'] === null || $q['id_parrent_question'] === ''){
+				$question_map[$q_id] = $q;
+			}
+		}
+
+		// 6. Inisialisasi Struktur Data Form Per Section
+		$data['form'] = [];
+		foreach ($section as $s) {
+			$data['form'][$s['id']] = [
+				'id'        => $s['id'],
+				'name'      => $s['name'],
+				'questions' => [],
+			];
+		}
+
+		// Grouping Questions Langsung ke Section Tanpa Parent-Child (Flat)
+		foreach ($question_map as $q) {
+			$sec_id = $q['id_form_section'];
+			if (isset($data['form'][$sec_id])) {
+				if (isset($approval_list[$sec_id][0]) && is_array($approval_list[$sec_id][0])) {
+					foreach ($approval_list[$sec_id] as $p) {
+						// Clone question untuk tiap PIC
+						$q_pic = $q;
+						$q_pic['tanggal_clearance'] = $p['tanggal_clearance'] ?? "";
+						$q_pic['receiver_name'] = decrypt($p['name']) ?? "";
+						$q_pic['receiver_status'] = $p['status'] ?? ""; 
+						
+						$data['form'][$sec_id]['questions'][] = $q_pic;
+					}
+				} else {
+					// Untuk Section 2, 3, 4, 5 (Baris Biasa)
+					$data['form'][$sec_id]['questions'][] = $q;
+				}
+			}
+		}
+
+		// Urutkan Pertanyaan Berdasarkan Sequence
+		foreach ($data['form'] as &$sec) {
+			usort($sec['questions'], function ($a, $b) {
+				return (int) ($a['sequence'] ?? 0) <=> (int) ($b['sequence'] ?? 0);
+			});
+		}
+		unset($sec);
+
+		if (isset($data['form'][6]) && isset($data['form'][7])) {
+			// 1. Ubah nama section 6 menjadi "HR"
+			$data['form'][6]['name'] = 'HR';
+
+			// 2. Gabungkan pertanyaan dari section 7 ke section 6
+			$data['form'][6]['questions'] = array_merge(
+				$data['form'][6]['questions'],
+				$data['form'][7]['questions']
+			);
+
+			// 3. Hapus section 7 dari array agar tidak tercetak dua kali
+			unset($data['form'][7]);
+		}
+		$approval[] =[
+			'tanggal_clearance' => $employee['tanggal_submit'],
+			'name' => $employee['name'],
+			'status' => 1,
+			'id_section' => 0,
+			'position' => $employee['position'],
+			'division' => $employee['division'],
+		];
+		$approval_mapped = [
+			'pemohon' => null,
+			'kaldiv'  => null,
+			'hr_head' => null,
+		];
+		$file_path = FCPATH . 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/qrcode/';
+		if (!is_dir($file_path)) {
+			mkdir($file_path, 0777, true);
+		}
+
+		//create qr code
+		$encrypted_id = encryptURL($id_exit_clearance);
+		$path = 'assets/documents/document_resignation/'. $data['employee']['nik'].'/exit_clearance/qrcode/'.$filename;
+		$generate_qr_code = $this->generate_qr_code_ec($path, $encrypted_id, $data['employee'], $filename);
+		// dumper($generate_qr_code);
+		foreach ($approval as $item) {
+			if ((string)$item['id_section'] === '0') {
+				$sign_path = FCPATH . 'assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/qr-code-requestor.png';
+				if(file_exists($sign_path)) {
+					$item['sign_img'] = $sign_path;
+				} else {
+					$item['sign_img'] = null;
+				}
+				$approval_mapped['pemohon'] = $item;
+			} elseif (stripos($item['position'], 'HR') !== false || stripos($item['position'], 'HRGA') !== false) {
+				$sign_path = FCPATH . 'assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/qr-code-hrhead.png';
+				if(file_exists($sign_path)) {
+					$item['sign_img'] = $sign_path;
+				} else {
+					$item['sign_img'] = null;
+				}
+				$approval_mapped['hr_head'] = $item;
+			} else {
+				$sign_path = FCPATH . 'assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/qr-code-kadiv.png';
+				if(file_exists($sign_path)) {
+					$item['sign_img'] = $sign_path;
+				} else {
+					$item['sign_img'] = null;
+				}
+				$approval_mapped['kaldiv'] = $item;
+			}
+		}
+		// dumper($data['form']);
+		$data['approval'] = $approval_mapped;
+
+		//generate pdf exit clearance
+		$ec_view = 'print_req_exit_clearance';
+		$ec_path = 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/';
+		$generate_ec_pdf = $this->generatePdfEc($ec_view, $ec_path, $data,'exit_clearance', 'exit_clearance.pdf');
+		return true;
+	}
+	public function getItemExitInterview($id_exit_clearance)
+	{
+		$getNikRequestor = $this->form_model->getNikRequestorNik($id_exit_clearance);
+		$employee = $this->getEmployeeInfoExitClearance($getNikRequestor['nik']);
+		$data['employee'] = $employee;
+		$form_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EI')->row_array();
+		
+		if (empty($form_type)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Form type not found.',
+				]));
+		}
+		$data['form_exit'] = $this->m_global->getRow('*', 'form_exit_clearance', [
+			'id_exit_clearance' => $id_exit_clearance,
+			'id_form_type' => $form_type['id'],
+		]);
+		$question = $this->form_model->getQuestions($form_type['id']);
+		$array_id = array_column($question, 'id');
+		$question_translations = $this->form_model->getQuestionTranslation($array_id);
+		
+		$option = $this->form_model->getOptions($array_id);
+		$option_id = array_column($option, 'id');
+		$option_translations = $this->form_model->getOptionTranslation($option_id);
+		$question_map = [];
+		if(!empty($data['form_exit'])){
+			$answers = $this->m_global->find('exit_clearance_answers', 'id_form', $data['form_exit']['id'])->result_array();
+		}else{
+			$answers = [];
+		}
+		
+		foreach ($question as $q) {
+			$q['options'] = [];
+			$q['children'] = [];
+			$question_map[$q['id']] = $q;
+		}
+		foreach ($question_translations as $qt) {
+			$question_id = $qt['id_question'];
+			if (isset($question_map[$question_id])) {
+				$question_map[$question_id]['translation'] = $qt['question'];
+			}
+		}
+		// dumper($question_map);
+		foreach ($option as $o) {
+			$option_map[$o['id']] = $o;
+			$option_map[$o['id']]['translation'] = '';
+		}
+		foreach ($option_translations as $ot) {
+			$option_id = $ot['id_option'];
+			if (isset($option_map[$option_id])) {
+				$option_map[$option_id]['translation'] = $ot['title'];
+			}
+		}
+		foreach ($option_map as $o) {
+			$question_id = $o['id_question'];
+			if (isset($question_map[$question_id])) {
+				$question_map[$question_id]['options'][] = $o;
+			}
+		}
+		// dumper($question_map);
+		foreach ($answers as $a){
+			$question_id = $a['id_question'];
+			if (isset($question_map[$question_id])) {
+				$question_map[$question_id]['answer'] = $a['answer'];
+			}
+		}
+		$parents = [];
+		$children = [];
+		foreach ($question_map as $question_item) {
+			$parent_id = $question_item['id_parrent_question'] ?? null;
+			if ($parent_id === null || $parent_id === '') {
+				$parents[$question_item['id']] = $question_item;
+			} else {
+				$children[] = $question_item;
+			}
+		}
+		foreach ($children as $child) {
+			$parent_id = $child['id_parrent_question'];
+			if (isset($parents[$parent_id])) {
+				$parents[$parent_id]['children'][] = $child;
+			} else {
+				$parents[$child['id']] = $child;
+			}
+		}
+		
+		uasort($parents, function ($a, $b) {
+			return (int) $a['sequence'] <=> (int) $b['sequence'];
+		});
+	
+		foreach ($parents as &$parent) {
+			if (!empty($parent['children'])) {
+				usort($parent['children'], function ($a, $b) {
+					return (int) $a['sequence'] <=> (int) $b['sequence'];
+				});
+			}
+		}
+		unset($parent);
+		foreach ($parents as $parent_question) {
+			$data['form'][$parent_question['id']] = $parent_question;
+		}
+
+		
+		//dumper($data['form']);
+		$encrypted_id = encryptURL($id_exit_clearance);
+		$path = 'assets/documents/document_resignation/'. $data['employee']['nik'].'/exit_clearance/qrcode/qr-code-requestor-ei.png';
+		$generate_qr_code = $this->generate_qr_code_ec($path, $encrypted_id, $data['employee'], 'qr-code-requestor-ei.png');
+
+		$sign_path = FCPATH . $path;
+		if(file_exists($sign_path)) {
+			$data['employee']['sign_img'] = $sign_path;
+		} else {
+			$data['employee']['sign_img'] = null;
+		}
+
+		//generate pdf exit clearance
+		$ec_view = 'print_req_exit_interview';
+		$ec_path = 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/';
+		$generate_ec_pdf = $this->generatePdfEc($ec_view, $ec_path, $data,'exit_interview', 'exit_interview.pdf');
+		return true;
+	}
+	public function getItemExitHandover($id_exit_clearance, $filename = 'qr-code-requestor-eh.png')
+	{
+		$getNikRequestor = $this->form_model->getNikRequestorNik($id_exit_clearance);
+		$employee = $this->getEmployeeInfoExitClearance($getNikRequestor['nik']);
+		$data['employee'] = $employee;
+		// 1. Ambil form type khusus Exit Clearance (EC)
+		$form_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EC')->row_array();
+
+		if (empty($form_type)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Form type not found.',
+				]));
+		}
+
+		// 3. Ambil data Form Exit Clearance Master
+		$data['form_exit'] = $this->m_global->getRow('*', 'form_exit_clearance', [
+			'id_exit_clearance' => $id_exit_clearance,
+			'id_form_type'      => $form_type['id'],
+		]);
+
+		if (empty($data['form_exit'])) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Form exit clearance not found.',
+				]));
+		}
+		// dumper($data['form_exit']);
+		$handover = $this->m_global->find('exit_clearance_handovers', 'id_form', $data['form_exit']['id'])->row_array();
+		$pic_hand = $this->form_model->getEmployeeAssign($handover['id'], 1);
+		$data['pic'] = $pic_hand ?? [];
+
+		$al = $this->form_model->getApprovalList($data['form_exit']['id_exit_clearance']);
+		foreach ($al as $a) {
+			if(isset($a['id_section']) && (int)$a['id_section'] === 1){
+				$approval_list[$a['id_section']][] = $a;
+			}else if(isset($a['id_section'])){
+				$approval_list[$a['id_section']] = $a;
+			}else{
+				$a['position'] = decrypt($a['position']);
+				$a['division'] = decrypt($a['division']);
+				$a['name'] = decrypt($a['name']);
+				$approval[] = $a;
+			}
+		}
+		$approval[] =[
+			'tanggal_clearance' => $employee['tanggal_submit'],
+			'name' => $employee['name'],
+			'status' => 1,
+			'id_section' => 0,
+			'position' => $employee['position'],
+			'division' => $employee['division'],
+		];
+		$approval_mapped = [
+			'pemohon' => null,
+			'kaldiv'  => null,
+			'hr_head' => null,
+		];
+		$file_path = FCPATH . 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/qrcode/';
+		if (!is_dir($file_path)) {
+			mkdir($file_path, 0777, true);
+		}
+
+		//create qr code
+		$encrypted_id = encryptURL($id_exit_clearance);
+		$path = 'assets/documents/document_resignation/'. $data['employee']['nik'].'/exit_clearance/qrcode/'.$filename;
+		$generate_qr_code = $this->generate_qr_code_ec($path, $encrypted_id, $data['employee'], $filename);
+		// dumper($generate_qr_code);
+		foreach ($approval as $item) {
+			if ((string)$item['id_section'] === '0') {
+				$sign_path = FCPATH . 'assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/qr-code-requestor-eh.png';
+				if(file_exists($sign_path)) {
+					$item['sign_img'] = $sign_path;
+				} else {
+					$item['sign_img'] = null;
+				}
+				$approval_mapped['pemohon'] = $item;
+			} elseif (stripos($item['position'], 'HR') !== false || stripos($item['position'], 'HRGA') !== false) {
+				$sign_path = FCPATH . 'assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/qr-code-hrhead-eh.png';
+				if(file_exists($sign_path)) {
+					$item['sign_img'] = $sign_path;
+				} else {
+					$item['sign_img'] = null;
+				}
+				$approval_mapped['hr_head'] = $item;
+			} else {
+				$sign_path = FCPATH . 'assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/qr-code-kadiv-eh.png';
+				if(file_exists($sign_path)) {
+					$item['sign_img'] = $sign_path;
+				} else {
+					$item['sign_img'] = null;
+				}
+				$approval_mapped['kaldiv'] = $item;
+			}
+		}
+		// dumper($data['form']);
+		$data['approval'] = $approval_mapped;
+
+		//generate pdf exit clearance
+		$ec_view = 'print_req_exit_handover';
+		$ec_path = 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/';
+		$generate_ec_pdf = $this->generatePdfEc($ec_view, $ec_path, $data,'exit_handover', 'exit_handover.pdf');
+		return true;
+
+	}
+	private function getEmployeeInfoExitClearance($employee_id)
+	{
+		$employee = $this->form_model->getEmployeeExitClearance($employee_id);
+		$period_of_work = (new DateTime(decrypt($employee['join_date'])))->diff(new DateTime($employee['last_working_date']));
+		$period_of_work_years = $period_of_work->y;
+		$period_of_work_months = $period_of_work->m;
+		$period_of_work_days = $period_of_work->d;
+		$period_of_work_formatted = $period_of_work_years . ' Tahun, ' . $period_of_work_months . ' Bulan, ' . $period_of_work_days . ' Hari';
+		$data = [
+			'name' => decrypt($employee['complete_name']),
+			'position' => decrypt($employee['position']),
+			'division' => decrypt($employee['division']),
+			'phone'  => decrypt($employee['phone_number']),
+			'join_date' => decrypt($employee['join_date']),
+			'last_date' => $employee['last_working_date'],
+			'nik' => $employee['nik'],
+			'period_of_work' => $period_of_work_formatted,
+			'tanggal_submit' => $employee['tanggal_submit'],
+		];
+		return $data;
+	}
+	private function generate_qr_code_ec($output_path, $encrypted_id, $employee,$filename)
+	{
+			$path = FCPATH . $output_path;
+			if(file_exists($path)){
+				unlink($path);
+			}
+			$config['cacheable']    = true;
+			$config['cachedir']     = './assets/';
+			$config['errorlog']     = './assets/';
+			$config['imagedir']     = './assets/documents/document_resignation/'.$employee['nik'].'/exit_clearance/qrcode/';
+			$config['imagelogo']    = './assets/images/IBS.png';
+			$config['quality']      = true;
+			$config['size']         = '1024';
+			$config['black']        = array(224, 255, 255);
+			$config['white']        = array(70, 130, 180);
+			$this->ciqrcode->initialize($config);
+			$image_name 			= $filename;
+			$params['data'] 		= base_url() . 'form/Qrrl/infoEC/' . $encrypted_id;
+			$params['size'] 		= 10;
+			$params['savename'] 	= FCPATH . $config['imagedir'] . $image_name;
+			$params['logo'] 		= FCPATH . $config['imagelogo'];
+			$params['imagetmp'] 	= $config['imagedir'];
+			$this->ciqrcode->generate($params);
+		return true;
+	}
+	private function generatePdfEc($path, $file_path, $data, $header_type, $filename = null)
+	{
+		$html = $this->load->view('form/print_out/'.$path, $data, true);
+
+		// 3. Inisialisasi TCPDF (Sama persis seperti gaya di sistem kamu)
+		$pdf = new my_pdf(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+
+		// Matikan Header & Footer garis bawaan TCPDF agar tidak merusak layout
+		$pdf->setHeaderType($header_type);
+		$pdf->setPrintHeader(true);
+		$pdf->setPrintFooter(false);
+
+		// Set Margin Kertas (Kiri: 10mm, Atas: 10mm, Kanan: 10mm)
+		$pdf->SetMargins(10, 35, 10);
+		$pdf->SetHeaderMargin(5);
+		$pdf->SetAutoPageBreak(true, 10);
+
+		// Tambah Halaman A4 Portrait
+		$pdf->AddPage('P', 'A4');
+
+		// Set Font standar
+		$pdf->SetFont('helvetica', '', 9);
+
+		// Write HTML: Cetak seluruh view HTML sekaligus dari posisi X=10mm, Y=10mm
+		$pdf->writeHTMLCell(
+			190,
+			0,
+			10,
+			35,
+			$html,
+			0,
+			1,
+			false,
+			true,
+			'L'
+		);
+		$path_out = FCPATH . $file_path . $filename;
+		if(file_exists($path_out)){
+			unlink($path_out);
+		}
+		$pdf->Output($path_out, 'F');
 	}
 
 }
