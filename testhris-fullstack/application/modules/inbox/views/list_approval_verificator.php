@@ -122,7 +122,7 @@
                             <?php
                                 foreach($header_ec_approved as $key => $value){
         
-                                $$url = base_url('form/detailVerifycator/'.encode_url($value["id_form_request"]).'/'.encode_url($value["id_section"]));
+                                $url = base_url('form/detailVerifycator/'.encode_url($value["id_form_request"]).'/'.encode_url($value["id_section"]));
                                 
                                 //////////////////////
                                 echo"

@@ -1,3 +1,14 @@
+<style>
+    .nk-ibx.nk-ibx-ec-dashboard {
+        max-height: none;
+        overflow-y: visible;
+    }
+
+    .nk-ibx.nk-ibx-ec-dashboard > .nk-ibx-body {
+        overflow-y: visible;
+    }
+</style>
+
 <div class="card" style="padding: 20px;">
     <div class="card-inner" style="padding-left: 0px;">
         <div class="card-title-group">

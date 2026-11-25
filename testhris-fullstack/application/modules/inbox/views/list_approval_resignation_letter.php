@@ -143,8 +143,8 @@
                             <tbody>
                             <?php
                                 foreach($header_ec_approved as $key => $value){
-                                if((int)$value['status_resign'] !== 3){
-                                    $url = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                if(!(int)$value['status_exit']){
+                                    $url = base_url('inbox/detail_req_resignation_letter/'.encode_url($value["id"]));
                                 }else{
                                     $url = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
                                 }

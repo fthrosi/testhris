@@ -73,7 +73,7 @@
                 <div class="nk-content p-0">
                     <div class="nk-content-inner">
                         <div class="nk-content-body">
-                            <div class="nk-ibx">
+                            <div class="nk-ibx <?= isset($content) && $content === 'dashboard/dashboardEC' ? 'nk-ibx-ec-dashboard' : ''; ?>">
 
                                 <?= $this->load->view('eapp_main-aside-menu'); ?>
                                 

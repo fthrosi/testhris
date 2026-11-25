@@ -434,7 +434,6 @@ class Form_model extends CI_Model {
 				break;
 
 			case 'EC':
-
 				$formRequest = array(
 		            'request_number' => $requestNumber,
 		            'form_type' => $formType,
@@ -6155,7 +6154,7 @@ class Form_model extends CI_Model {
 	{
 		$id_exit_form = $id_data;
 		$this->db->trans_begin();
-		$exists = $this->db->get_where('exit_clearance_note_sections', ['id_section' => $note['id_section'], 'id_employee' => $note['id_employee']])->row_array();
+		$exists = $this->db->get_where('exit_clearance_note_sections', ['id_section' => $note['id_section'], 'id_employee' => $note['id_employee'], 'id_form' => $note['id_form']])->row_array();
 		
 		if($exists){
 			if(!empty($note)){
@@ -6337,6 +6336,7 @@ class Form_model extends CI_Model {
 				return false;
 			}
 		}
+		
 		if($id_exit_form !== null && $typeForm === 'Exit Interview')
 		{
 			$this->db->where('id', $id_exit_form);
@@ -6347,25 +6347,20 @@ class Form_model extends CI_Model {
 			}
 		}
 		$form_type = $this->db->select('id')->from('exit_clearance_form_types')->get()->result_array();
+		
 		$forms = $this->db
 			->select('fe.id_form_type, fe.status, ec.id_form_request')
 			->from('exit_clearance ec')
 			->join(
 				'form_exit_clearance fe',
 				'fe.id_exit_clearance = ec.id',
-				'left'
+				'inner'
 			)
-			->where('ec.id', $id_ec)
+			->where('fe.id_exit_clearance', $id_ec)
 			->get()
 			->result_array();
 		$existing_form_type = array_column($forms, 'id_form_type');
-		$type_ei = array_values(array_filter($form_type, function($item){
-			return (string)$item['code'] === 'EI';
-		}), 'id_form_type');
-		$form_not_ei = array_values(array_filter($forms, function($item){
-			return (int)$item['id_form_type'] !== (int)$type_ei[0]['id'];
-		}), 'id_form_type');
-		$form_not_saved = array_filter($form_not_ei, function($item){
+		$form_not_saved = array_filter($forms, function($item){
 			return (int)$item['status'] === 0 || (int)$item['status'] === 2;
 		});
 		$missing_form_type = array_diff(
@@ -6386,7 +6381,7 @@ class Form_model extends CI_Model {
 		$this->db->trans_commit();
 		return true;
 	}
-	public function editSection($id_exit_form, $id_section, $status)
+	public function editSection($id_exit_form, $id_section, $status, $state)
 	{
 		$this->db->trans_begin();
 		$this->db->where('id_exit_form', $id_exit_form);
@@ -6396,19 +6391,21 @@ class Form_model extends CI_Model {
 			$this->db->trans_rollback();
 			return false;
 		}
-		$exit_form = $this->db->get_where('form_exit_clearance', ['id' => $id_exit_form])->row_array();
-		$id_ec_eh_form = $this->db->select('id, code')->where_in('code',  ['EC', 'EH'])->get('exit_clearance_form_types')->result_array();
-		$ids = array_column($id_ec_eh_form, 'id', 'code');
-		$id_ec = $ids['EC'] ?? null;
-		$id_eh = $ids['EH'] ?? null;
-		if((int)$id_section === 1){
-			$this->db->update('form_exit_clearance', ['status' => 0, 'updated_at' => date('Y-m-d H:i:s')], ['id_exit_clearance' => $exit_form['id_exit_clearance'], 'id_form_type' => $id_eh]);
-			if($this->db->trans_status() === FALSE) {
-				$this->db->trans_rollback();
-				return false;
+		if($state !== 'revised'){
+			$exit_form = $this->db->get_where('form_exit_clearance', ['id' => $id_exit_form])->row_array();
+			$id_ec_eh_form = $this->db->select('id, code')->where_in('code',  ['EC', 'EH'])->get('exit_clearance_form_types')->result_array();
+			$ids = array_column($id_ec_eh_form, 'id', 'code');
+			$id_ec = $ids['EC'] ?? null;
+			$id_eh = $ids['EH'] ?? null;
+			if((int)$id_section === 1){
+				$this->db->update('form_exit_clearance', ['status' => 0, 'updated_at' => date('Y-m-d H:i:s')], ['id_exit_clearance' => $exit_form['id_exit_clearance'], 'id_form_type' => $id_eh]);
+				if($this->db->trans_status() === FALSE) {
+					$this->db->trans_rollback();
+					return false;
+				}
 			}
+			$this->db->update('form_exit_clearance', ['status' => 0, 'updated_at' => date('Y-m-d H:i:s')], ['id_exit_clearance' => $exit_form['id_exit_clearance'], 'id_form_type' => $id_ec]);
 		}
-		$this->db->update('form_exit_clearance', ['status' => 0, 'updated_at' => date('Y-m-d H:i:s')], ['id_exit_clearance' => $exit_form['id_exit_clearance'], 'id_form_type' => $id_ec]);
 		if($this->db->trans_status() === FALSE) {
 			$this->db->trans_rollback();
 			return false;
@@ -6624,6 +6621,16 @@ class Form_model extends CI_Model {
 				$this->db->trans_rollback();
 				return false;
 			}
+		}else{
+			$this->db->select('id');
+			$this->db->from('exit_clearance_approval_request');
+			$this->db->where('id_form_request', $exit_form['id_form_request']);
+			$this->db->where('approval_type', 'EXIT_CLEARANCE');
+			$app_req = $this->db->get()->row_array();
+			$this->db->where('id_approval_req', $app_req['id']);
+			$this->db->delete('exit_clearance_approval_steps');
+			$this->db->where('id', $app_req['id']);
+			$this->db->delete('exit_clearance_approval_request');
 		}
 		if($this->db->trans_status() === FALSE) {
 			$this->db->trans_rollback();
@@ -6857,7 +6864,7 @@ class Form_model extends CI_Model {
 		->from('v_hris_employee_updated e')
 		->join('form_request fr', 'fr.employee_id = e.nik', 'left')
 		->join('exit_clearance ec', 'ec.id_form_request = fr.id', 'left')
-		->join('exit_clearance_resignation_Letters rl', 'rl.id_form_request = fr.id', 'left')
+		->join('exit_clearance_resignation_letters rl', 'rl.id_form_request = fr.id', 'left')
 		->where('e.nik', $nik);
 		return $this->db->get()->row_array();
 	}
@@ -6885,6 +6892,18 @@ class Form_model extends CI_Model {
 		->where('ec.id', $id_exit_clearance);
 		return $this->db->get()->row_array();
 	}
+	public function getAppoverInfo($nikApprover, $id_exit_clearance){
+		$this->db->select('e.complete_name as nama, e.nik, fr.request_number as request_id, ec.submitted_at as tanggal_submit')
+		->from('v_hris_employee_updated e')
+		->join('exit_clearance_approval_steps s', 's.id_approver = e.nik', 'left')
+		->join('exit_clearance_approval_request r', 's.id_approval_req = r.id', 'left')
+		->join('exit_clearance ec', 'ec.id_form_request = r.id_form_request', 'left')
+		->join('form_request fr', 'fr.id = ec.id_form_request', 'left')
+		->where('e.nik', $nikApprover)
+		->where('ec.id', $id_exit_clearance)
+		->where('r.approval_type', 'EXIT_CLEARANCE');
+		return $this->db->get()->row_array();
+	}
 	public function get_pic_status($id_form_request){
 		$this->db->select('as.id_approver, as.status')
 		->from('exit_clearance_approval_steps as')
@@ -6897,8 +6916,7 @@ class Form_model extends CI_Model {
 	public function savePicRevisi($data = [], $answers = [],$pic = [] ,$note = [],$handover_form = [], $pic_delete = [])
 	{
 		$this->db->trans_begin();
-		$exists = $this->db->get_where('exit_clearance_note_sections', ['id_section' => $note['id_section'], 'id_employee' => $note['id_employee']])->row_array();
-		
+		$exists = $this->db->get_where('exit_clearance_note_sections', ['id_section' => $note['id_section'], 'id_employee' => $note['id_employee'], 'id_form' => $note['id_form']])->row_array();
 		if($exists){
 			if(!empty($note)){
 				$this->db->where(['id_section' => $note['id_section'], 'id_employee' => $note['id_employee']]);
@@ -7011,8 +7029,9 @@ class Form_model extends CI_Model {
 		}else{
 			if ((int)$section === 2) {
 				$this->db->where('unit_code !=', 1);
+				$this->db->where('unit_code !=', null);
 			} else if((int)$section === 1){
-				$this->db->where('unit_code', 1);
+				$this->db->where('unit_code !=', null);
 			}
 		}
 		$this->db->where('status', 2);
@@ -7079,7 +7098,7 @@ class Form_model extends CI_Model {
 		}
 		$this->db->update('exit_clearance_approval_steps',['status' => $status_approval, 'acted_at' => $this->date], ['id_approval_req' => $appr['id'], 'id_approver' => $this->emp_nik]);
 		if($status === 'Revised'){
-			// $this->db->update('exit_clearance', ['status' => 2], ['id_form_request' => $id]);
+			$this->db->update('exit_clearance', ['status' => 2], ['id_form_request' => $id]);
 			$this->db->update_batch('form_exit_clearance', $form_update, 'id');
 			$this->db->update_batch('exit_clearance_form_sections', $data_sec_update, 'id');
 			$input = $this->db->get_where('exit_clearance', ['id_form_request' => $id])->row_array();
@@ -7116,5 +7135,82 @@ class Form_model extends CI_Model {
 		return $current_step;
 	}
 
+	public function checkCanEdit($id_form_request){
+		$canEdit = $this->db->select('as.status')
+		->from('exit_clearance_approval_steps as')
+		->join('exit_clearance_approval_request ar', 'as.id_approval_req = ar.id', 'left')
+		->where('ar.id_form_request', $id_form_request)
+		->where('ar.approval_type', 'EXIT_CLEARANCE')
+		->where('as.sequence', 1)
+		->where('as.status !=', 0)
+		->get()->row_array();
+		if(empty($canEdit)){
+			return true;
+		}
+		return false;
+	}
+
+	public function getDataRLEmail($id_rl)
+	{
+		$this->db->select('fr.request_number, e.complete_name, e.nik, e.position, rl.last_date, rl.notes, rl.status, s.id_approver, fr.created_by')
+		->from('exit_clearance_resignation_letters rl')
+		->join('form_request fr', 'fr.id = rl.id_form_request', 'left')
+		->join('v_hris_employee_updated e', 'e.nik = fr.employee_id', 'left')
+		->join('exit_clearance_approval_request r', 'fr.id = rl.id_form_request', 'left')
+		->join('exit_clearance_approval_steps s', 's.id_approval_req = r.id', 'left')
+		->where('rl.id', $id_rl)
+		->where('r.approval_type', 'RESIGNATION_LETTER');
+		return $this->db->get()->row_array();
+	}
+	public function getEmailEC($id_form_request, $is_first = false)
+	{
+		$this->db->select('e.complete_name, e.email')
+		->from('v_hris_employee_updated e')
+		->join('exit_clearance_approval_steps s', 'e.nik = s.id_approver', 'left')
+		->join('exit_clearance_approval_request r', 's.id_approval_req = r.id', 'left')
+		->where('r.approval_type', 'EXIT_CLEARANCE')
+		->where('r.id_form_request', $id_form_request);
+		if($is_first === true){
+			$this->db->where('s.sequence', 1);
+		}
+		return $this->db->get()->result_array();
+	}
+	public function getReviseStep($id_form_request)
+	{
+		$this->db->select('s.id_approver, s.unit_code')
+		->from('exit_clearance_approval_steps s')
+		->join('exit_clearance_approval_request r', 's.id_approval_req = r.id', 'left')
+		->where('r.approval_type', 'EXIT_CLEARANCE')
+		->where('r.id_form_request', $id_form_request)
+		->where('s.status', 2)
+		->order_by('s.sequence', 'ASC');
+		return $this->db->get()->result_array();
+	}
+	public function getApprover($id_approver){
+		$this->db->select('e.complete_name, e.email, e.nik')
+		->from('v_hris_employee_updated e')
+		->where_in('e.nik', $id_approver);
+		return $this->db->get()->result_array();
+	}
+	public function getHRGADivHead(){
+		$div = encrypt('HRGA DIVISION');
+		$sub_group = encrypt('Outsource');
+		$sub_group2 = encrypt('Internship');
+		$this->db->select('division_head as div_head')
+		->from('v_hris_employee_updated')
+		->where('division', $div)
+		->where('employee_subgroup !=', $sub_group)
+		->where('employee_subgroup !=', $sub_group2);
+		$div_head = $this->db->get()->result_array();
+
+		foreach($div_head as &$dh){
+			$dh['div_head'] = decrypt($dh['div_head']);
+		}
+		$dh = array_column($div_head, 'div_head');
+		$this->db->select('email,complete_name')
+		->from('v_hris_employee_updated')
+		->where_in('nik', $dh);
+		return $this->db->get()->result_array();
+	}
 
 }

@@ -149,7 +149,7 @@
 
         <!-- Footer -->
         <div class="qr-result-footer">
-            © 2026 PT. Infrastruktur Bisnis Sejahtera
+            © <?= date('Y') ?> PT. Infrastruktur Bisnis Sejahtera
         </div>
 
     </div>

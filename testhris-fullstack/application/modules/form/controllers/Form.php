@@ -117,7 +117,6 @@ class Form extends Admin_Controller
 					'complete_name',
 					'nik'
 				), 'hris_employee',  array('nik' => $this->emp_id));
-
 				$requestId = $this->form_model->initial_create($formType, $dataEmployee, $requestNumber, $table['header_table']);
 				
 				break;
@@ -673,6 +672,41 @@ class Form extends Admin_Controller
 			$this->ciqrcode->generate($params);
 			$this->generate_resignation_letter_pdf($resignation_letter['id_form_request']);
 			unlink($path);
+			$email_data = $this->form_model->getDataRLEmail($resignation_letter['id']);
+			$approver_email = $this->m_global->find('v_hris_employee_updated', 'nik', $email_data['id_approver'])->row_array();
+			$dataEmail =[
+				'div_head_name' => decrypt($approver_email['complete_name']),
+				'req_number' => $email_data['request_number'],
+				'req_name' => decrypt($email_data['complete_name']),
+				'req_nik' => $email_data['nik'],
+				'position_name' => decrypt($email_data['position']),
+				'module' => 'Exit Clearance',
+				'resign_date' => indo_date($email_data['last_date']),
+				'notes' => $email_data['notes'],
+				'status' => 'Waiting for Approval',
+			];
+			// dumper($dataEmail);
+			$html  = $this->load->view('services/email/rl_division_head_approval_request', $dataEmail, TRUE);
+			$data_email = [
+				'app_name'          => 'HRIS',
+				'email_to'          => 'luffi.utomo@ibsmulti.com',
+				'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+				'email_subject'     => "[HRIS-EC] Resignation Letter Approval Request",
+				'email_body'        => $html,
+			];
+			$res = $this->apiemail_service->posting_email($data_email);
+			$dataRes = json_decode($res, true);
+			// Validasi apakah format respons valid dan memiliki key 'status'
+			if (is_array($dataRes) && isset($dataRes['status'])) {
+				
+				// Kondisi 1: Pengiriman Berhasil (status === true)
+				if ($dataRes['status'] === true) {
+				} 
+				// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+				else {
+					$this->logs('Request Approval RL', $resignation_letter['id'], 'Failed to send Email to Division Head');
+				}
+			}
 			$response = [
 				'status' => true,
 				'message' => 'Resignation letter updated successfully.',
@@ -929,7 +963,7 @@ class Form extends Admin_Controller
 	}
 	public function saveSection()
 	{
-		// $allPost = $this->input->post();
+		$allPost = $this->input->post();
 		// dumper($allPost);
 		$section_id = $this->input->post('section_id');
 		$answers = $this->input->post('answer');
@@ -937,6 +971,14 @@ class Form extends Admin_Controller
 		$id_exit_form = $this->input->post('id_form_exit');
 		$jumlah = $this->input->post('jumlah');
 		$note = $this->input->post('note');
+		foreach ($allPost as $key => $value) {
+			if (strpos($key, 'note-') === 0) {
+				$notes = $value;
+
+				// Ambil angka di belakang note-
+				$idnote = substr($key, 5);
+			}
+		}
 		if (empty($section_id)) {
 			return $this->output
 				->set_content_type('application/json')
@@ -1051,7 +1093,7 @@ class Form extends Admin_Controller
 				'id_form' => $exit_form['id'],
 				'id_section' => $section['id'],
 				'id_employee' => $this->emp_nik,
-				'note' => $note,
+				'note' => $note ?? $notes,
 				'created_at' => date('Y-m-d H:i:s'),
 			];
 		}
@@ -1080,7 +1122,8 @@ class Form extends Admin_Controller
 		$section_id = $this->input->post('section_id');
 		$id_exit_form = $this->input->post('id_form_exit');
 		$status = $this->input->post('status');
-		$edit = $this->form_model->editSection($id_exit_form, $section_id, $status);
+		$state = $this->input->post('state');
+		$edit = $this->form_model->editSection($id_exit_form, $section_id, $status, $state);
 		if($edit === false){
 			return $this->output
 				->set_content_type('application/json')
@@ -1115,7 +1158,76 @@ class Form extends Admin_Controller
 				];
 			}
 		}
+		$forms = $this->m_global->find('form_exit_clearance', 'id_exit_clearance', $exit_form['id_exit_clearance'])->result_array();
+		$form_type = $this->m_global->find('exit_clearance_form_types')->result_array();
+		$form_types = array_column($form_type, 'id');
+		$form_types_in_forms = array_column($forms, 'id_form_type');
+		$missing_form_types = array_diff($form_types, $form_types_in_forms);
+		$form_type_ei = array_values(array_filter($form_type, function ($type) {
+			return $type['code'] === 'EI';
+		}));
+		$form_not_ei = array_values(array_filter($forms, function ($form) use ($form_type_ei) {
+			return (int)$form['id_form_type'] !== (int)$form_type_ei[0]['id'];
+		}));
+		$form_not_save = array_filter($form_not_ei, function ($form) {
+			return (int)$form['status'] !== 1;
+		});
+		if(empty($missing_form_types) && empty($form_not_save)){
+			$complete = true;
+		}
+		// dumper($complete);
 		// dumper($id_ec);
+		
+		if($complete === true){
+			$exit = $this->m_global->find('exit_clearance', 'id', $exit_form['id_exit_clearance'])->row_array();
+			$rl = $this->m_global->find('exit_clearance_resignation_letters', 'id_form_request', $exit['id_form_request'])->row_array();
+			$id_app = $this->form_model->getReviseStep($exit['id_form_request']);
+			foreach($id_app as $ip){
+				$id_map[$ip['id_approver']] = $ip;
+			}
+			$id_approver = array_column($id_app, 'id_approver');
+			$approver = $this->form_model->getApprover($id_approver);
+			
+			$email_data = $this->form_model->getDataRLEmail($rl['id']);
+			$notes_history = $this->inbox_model->getNotesRL($exit['id'], 'id_exit_clearance');
+			foreach($approver as $app){
+					$approver_unit_code = $id_map[$app['nik']]['unit_code'] ?? null;
+					$dataEmail =[
+						'pic_name' => decrypt($appr['complete_name']),
+						'req_number' => $email_data['request_number'],
+						'req_name' => decrypt($email_data['complete_name']),
+						'req_nik' => $email_data['nik'],
+						'position_name' => decrypt($email_data['position']),
+						'module' => 'Exit Clearance',
+						'resign_date' => indo_date($email_data['last_date']),
+						'notes' => $email_data['notes'],
+						'status' => 'Waiting for Approval',
+						'notes_history' => $notes_history
+					];
+					$htmlinfo =  $this->load->view('services/email/EC_DivisonHeadApprovalRequest', $dataEmail, TRUE);
+					$data_email_info = [
+						'app_name'          => 'HRIS',
+						'email_to'          => 'fathur.rosi@ibsmulti.com',//decrypt($app['email']),
+						'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+						'email_subject'     => "[HRIS-EC] Exit Clearance Approval Request",
+						'email_body'        => $htmlinfo,
+					];
+					$res_info = $this->apiemail_service->posting_email($data_email_info);
+					$dataResInfo = json_decode($res_info, true);
+					// Validasi apakah format respons valid dan memiliki key 'status'
+					if (is_array($dataResInfo) && isset($dataResInfo['status'])) {
+						
+						// Kondisi 1: Pengiriman Berhasil (status === true)
+						if ($dataResInfo['status'] === true) {
+						} 
+						// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+						else {
+							$this->logs('Request Approval EC', $rl['id_form_request'], 'Failed to send Email to verificator');
+						}
+					}
+			}
+			
+		}
 		$save = $this->form_model->saveDataSection([],$data,[],[],[],$id_exit_form,'Exit Interview',[],[], $id_ec ?? null);
 		if($save === false){
 			return $this->output
@@ -1457,6 +1569,7 @@ class Form extends Admin_Controller
 					break;
 			}
 		}
+		$data['can_edit_all_ec'] = $this->form_model->checkCanEdit($data['header']['id_form_request']);
 		// dumper($data['form_steps']);
 		$data['main'] = 'form/exit_clearance/exit_clearance_home';
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
@@ -1477,7 +1590,7 @@ class Form extends Admin_Controller
 		]);
 		$data['form_handover'] = $EH_form;
 		$handovers = $this->m_global->find('exit_clearance_handovers', 'id_form', $EC_form['id'])->row_array();
-		$data['select_pic'] = $this->form_model->getEmployeeAssign($handovers['id'], 0);
+		$data['select_pic'] = $this->form_model->getEmployeeAssign($handovers['id']);
 		$pics = $this->form_model->getEmployeeAssign($handovers['id'], 1);
 		foreach ($pics as &$pic) {
 			$pic['word_status'] = (int) $pic['status'] === 1 ? 'Pending' : 'Complete';
@@ -1629,20 +1742,52 @@ class Form extends Admin_Controller
 	{
 		$id_exit_clearance = $this->input->post('id_exit_clearance');
 		$status = $this->input->post('status');
-
-		$this->getItemExitHandover($id_exit_clearance);
-		$this->getItemExitInterview($id_exit_clearance);
-		$this->getItemExitClearance($id_exit_clearance);
-		
+		$exit_clearance = $this->m_global->find('exit_clearance', 'id', $id_exit_clearance)->row_array();
+		if (empty($exit_clearance)) {
+			return $this->output
+				->set_content_type('application/json')
+				->set_status_header(404)
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Exit clearance not found.',
+				]));
+		}
 		$forms = $this->m_global->find('form_exit_clearance', 'id_exit_clearance', $id_exit_clearance)->result_array();
 		foreach($forms as $form){
 			$file_path = (int)$form['id_form_type'] === 1 ? 'exit_clearance.pdf' : ((int)$form['id_form_type'] === 2 ? 'exit_handover.pdf' : 'exit_interview.pdf');
-			$dataUpdate[]=[
+			if((int)$status !== 0){
+				$dataUpdate[]=[
 					'id' => $form['id'],
 					'file_path' => $file_path,
 					'updated_at' => date('Y-m-d H:i:s'),
-			];
+				];
+			}else{
+				$dataUpdate[]=[
+					'id' => $form['id'],
+					'status' => 0,
+					'updated_at' => date('Y-m-d H:i:s'),
+				];
+			}
+			
 		}
+		if((int)$status !== 0){
+			$this->getItemExitHandover($id_exit_clearance);
+			$this->getItemExitInterview($id_exit_clearance);
+			$this->getItemExitClearance($id_exit_clearance);
+		}
+		if((int)$status === 0){
+			$check_can_edit = $this->form_model->checkCanEdit($exit_clearance['id_form_request']);
+			if($check_can_edit === false){
+				return $this->output
+					->set_content_type('application/json')
+					->set_status_header(403)
+					->set_output(json_encode([
+						'status' => false,
+						'message' => 'Cannot edit exit clearance form because the request has been approved or rejected.',
+					]));
+			}
+		}
+		
 		$update = $this->form_model->updateExitClearanceStatus($id_exit_clearance, $status, $dataUpdate);
 		if($update === false){
 			return $this->output
@@ -1652,6 +1797,48 @@ class Form extends Admin_Controller
 					'status' => false,
 					'message' => 'Failed to update exit clearance status.',
 				]));
+		}
+		if((int)$status === 1){
+			$pic_handover = $this->form_model->getEmailEC($exit_clearance['id_form_request'], true);
+			$rl = $this->m_global->find('exit_clearance_resignation_letters', 'id_form_request', $exit_clearance['id_form_request'])->row_array();
+			$email_data = $this->form_model->getDataRLEmail($rl['id']);
+			$notes_history = $this->inbox_model->getNotesRL($exit_clearance['id'], 'id_exit_clearance');
+			
+			foreach($pic_handover as $pic){
+				$dataEmail =[
+					'pic_name' => decrypt($pic['complete_name']),
+					'req_number' => $email_data['request_number'],
+					'req_name' => decrypt($email_data['complete_name']),
+					'req_nik' => $email_data['nik'],
+					'position_name' => decrypt($email_data['position']),
+					'module' => 'Exit Clearance',
+					'resign_date' => indo_date($email_data['last_date']),
+					'notes' => $email_data['notes'],
+					'status' => 'Waiting for Verification',
+					'notes_history' => $notes_history
+				];
+				$htmlinfo =  $this->load->view('services/email/EC_PIC_HandoverVerificationRequest', $dataEmail, TRUE);
+				$data_email_info = [
+					'app_name'          => 'HRIS',
+					'email_to'          => decrypt($pic['email']),
+					'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+					'email_subject'     => "[HRIS-EC] Exit Clearance Verification Request",
+					'email_body'        => $htmlinfo,
+				];
+				$res_info = $this->apiemail_service->posting_email($data_email_info);
+				$dataResInfo = json_decode($res_info, true);
+				// Validasi apakah format respons valid dan memiliki key 'status'
+				if (is_array($dataResInfo) && isset($dataResInfo['status'])) {
+					
+					// Kondisi 1: Pengiriman Berhasil (status === true)
+					if ($dataResInfo['status'] === true) {
+					} 
+					// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+					else {
+						$this->logs('Request Approval EC', $rl['id_form_request'], 'Failed to send Email to verificator');
+					}
+				}
+			}
 		}
 		
 		return $this->output
@@ -7105,11 +7292,11 @@ class Form extends Admin_Controller
 		$form_not_save = array_filter($form_not_ec, function ($form) {
 			return (int)$form['status'] !== 1;
 		});
-		$ei_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EI')->row_array();
-		$forms_without_ei = array_filter($forms, function ($form) use ($ei_type) {
-			return (int)$form['id_form_type'] !== (int)$ei_type['id'];
+		$eh_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EH')->row_array();
+		$forms_eh = array_filter($forms, function ($form) use ($eh_type) {
+			return (int)$form['id_form_type'] === (int)$eh_type['id'];
 		});
-		$forms_not_submitted = array_filter($forms_without_ei, function ($form) {
+		$forms_not_submitted = array_filter($forms_eh, function ($form) {
 			return (int)$form['status'] !== 1;
 		});
 		$app_req = $this->m_global->find('exit_clearance_approval_request', 'id_form_request', $id_request)->result_array();
@@ -7122,7 +7309,7 @@ class Form extends Admin_Controller
 		}
 		// dumper($app_ec);
 		if(empty($forms_not_submitted)){
-			$update = $this->form_model->updateApprovalStep($app_ec[0]['id'],1,null,[],$complete ?? null);
+			$update = $this->form_model->updateApprovalStep($app_ec[0]['id'],1,1,[],$complete ?? null);
 		}else{
 			$update = $this->form_model->updateApprovalStep($app_ec[0]['id'],1, 2,[],$complete ?? null);
 		}
@@ -7135,6 +7322,7 @@ class Form extends Admin_Controller
 					'message' => 'Failed to update approval step.',
 				]));
 		}
+		
 		$this->getItemExitClearance($form_exit['id_exit_clearance']);
 		return $this->output
 			->set_content_type('application/json')
@@ -7173,11 +7361,11 @@ class Form extends Admin_Controller
 		$form_not_save = array_filter($form_not_eh, function ($form) {
 			return (int)$form['status'] !== 1;
 		});
-		$ei_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EI')->row_array();
-		$forms_without_ei = array_filter($forms, function ($form) use ($ei_type) {
-			return (int)$form['id_form_type'] !== (int)$ei_type['id'];
+		$ec_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EC')->row_array();
+		$forms_ec = array_filter($forms, function ($form) use ($ec_type) {
+			return (int)$form['id_form_type'] === (int)$ec_type['id'];
 		});
-		$forms_not_submitted = array_filter($forms_without_ei, function ($form) {
+		$forms_not_submitted = array_filter($forms_ec, function ($form) {
 			return (int)$form['status'] !== 1;
 		});
 		$app_req = $this->m_global->find('exit_clearance_approval_request', 'id_form_request', $id_request)->result_array();
@@ -7187,6 +7375,56 @@ class Form extends Admin_Controller
 		$missing_form_types = array_diff($form_types, $form_types_in_forms);
 		if(empty($missing_form_types) && empty($form_not_save)){
 			$complete = true;
+		}
+		if($complete === true){
+			$exit = $this->m_global->find('exit_clearance', 'id', $form_exit['id_exit_clearance'])->row_array();
+			$rl = $this->m_global->find('exit_clearance_resignation_letters', 'id_form_request', $exit['id_form_request'])->row_array();
+			$id_app = $this->form_model->getReviseStep($exit['id_form_request']);
+			foreach($id_app as $ip){
+				$id_map[$ip['id_approver']] = $ip;
+			}
+			$id_approver = array_column($id_app, 'id_approver');
+			$approver = $this->form_model->getApprover($id_approver);
+			
+			$email_data = $this->form_model->getDataRLEmail($rl['id']);
+			$notes_history = $this->inbox_model->getNotesRL($exit['id'], 'id_exit_clearance');
+			foreach($approver as $app){
+					$approver_unit_code = $id_map[$app['nik']]['unit_code'] ?? null;
+					$dataEmail =[
+						'pic_name' => decrypt($app['complete_name']),
+						'req_number' => $email_data['request_number'],
+						'req_name' => decrypt($email_data['complete_name']),
+						'req_nik' => $email_data['nik'],
+						'position_name' => decrypt($email_data['position']),
+						'module' => 'Exit Clearance',
+						'resign_date' => indo_date($email_data['last_date']),
+						'notes' => $email_data['notes'],
+						'status' => $approver_unit_code ? 'Waiting for Verification' : 'Waiting for Approval',
+						'notes_history' => $notes_history
+					];
+					$htmlinfo =  $this->load->view('services/email/EC_PIC_HandoverVerificationRequest', $dataEmail, TRUE);
+					$data_email_info = [
+						'app_name'          => 'HRIS',
+						'email_to'          => 'fathur.rosi@ibsmulti.com',//decrypt($app['email']),
+						'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+						'email_subject'     => $approver_unit_code ? "[HRIS-EC] Exit Clearance Verification Request" : "[HRIS-EC] Exit Clearance Approval Request",
+						'email_body'        => $htmlinfo,
+					];
+					$res_info = $this->apiemail_service->posting_email($data_email_info);
+					$dataResInfo = json_decode($res_info, true);
+					// Validasi apakah format respons valid dan memiliki key 'status'
+					if (is_array($dataResInfo) && isset($dataResInfo['status'])) {
+						
+						// Kondisi 1: Pengiriman Berhasil (status === true)
+						if ($dataResInfo['status'] === true) {
+						} 
+						// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+						else {
+							$this->logs('Request Approval EC', $rl['id_form_request'], 'Failed to send Email to verificator');
+						}
+					}
+			}
+			
 		}
 		$pic = $this->m_global->find('exit_clearance_approval_steps', 'id_approval_req', $app_ec[0]['id'])->result_array();
 		$pic_hand = $this->form_model->getEmployeeAssign($id_handover, 1);
@@ -7207,8 +7445,9 @@ class Form extends Admin_Controller
 				'created_at' => date('Y-m-d H:i:s'),
 			];
 		}
+		// dumper($forms_not_submitted);
 		if(empty($forms_not_submitted)){
-			$update = $this->form_model->updateApprovalStep($app_ec[0]['id'],2,null,$data_pic_add ?? [],$complete ?? null);
+			$update = $this->form_model->updateApprovalStep($app_ec[0]['id'],2,1,$data_pic_add ?? [],$complete ?? null);
 		}else{
 			$update = $this->form_model->updateApprovalStep($app_ec[0]['id'],2, 2,$data_pic_add ?? [],$complete ?? null);
 		}
@@ -7304,6 +7543,170 @@ class Form extends Admin_Controller
 		if((string)$last_step[0]['id_approver'] === (string)$this->emp_nik){
 				$last_approver = true;
 		}
+		$rl = $this->m_global->find('exit_clearance_resignation_letters', 'id_form_request', $exit_clearance['id_form_request'])->row_array();
+		$email_data = $this->form_model->getDataRLEmail($rl['id']);
+		$notes_history = $this->inbox_model->getNotesRL($exit_clearance['id'], 'id_exit_clearance');
+		$verificator = $this->m_global->find('v_hris_employee_updated', 'nik', $this->emp_nik)->row_array();		
+		$dataEmail =[
+			'div_head_name' => decrypt($verificator['complete_name']),
+			'req_number' => $email_data['request_number'],
+			'req_name' => decrypt($email_data['complete_name']),
+			'req_nik' => $email_data['nik'],
+			'position_name' => decrypt($email_data['position']),
+			'module' => 'Exit Clearance',
+			'resign_date' => indo_date($email_data['last_date']),
+			'notes' => $email_data['notes'],
+			'status' => $status === 'revised' ? 'Revised' : 'Approved',
+			'notes_history' => $notes_history
+		];
+		// dumper($dataEmail);
+		if($status !== 'Approved'){
+			$htmlinfo = $this->load->view('services/email/ECRevised', $dataEmail, TRUE);
+			$subject = "[HRIS-EC] Exit Clearance Request Revised";
+		}else{
+			$next_step = $this->inbox_model->getNextEmail($app_ec[0]['id'], $this->emp_nik);
+			$htmlinfo = $this->load->view('services/email/ECApprovedbyDivHead', $dataEmail, TRUE);
+			$subject = "[HRIS-EC] Exit Clearance Request Approved";
+			if(!empty($next_step)){
+				$id_app = array_column($next_step, 'id_approver');
+				$approver = $this->form_model->getApprover($id_app);
+				foreach($next_step as $next){
+					$next_map[$next['id_approver']] = $next;
+				}
+				foreach($approver as $appr){
+					$id_emp = $appr['nik'];
+					$unit_code = $next_map[$id_emp]['unit_code'];
+					switch($unit_code){
+						case 2:
+							$div_name = 'Finance';
+							$template = 'services/email/ECFinanceVerificationRequest';
+						break;
+						case 3:
+							$div_name = 'IT Infrastructure';
+							$template = 'services/email/ECITInfrastructureVerificationRequest';
+						break;
+						case 4:
+							$div_name = 'SAP';
+							$template = 'services/email/ECSAPVerificationRequest';
+						break;
+						case 5:
+							$div_name = 'GA';
+							$template = 'services/email/ECGAVerificationRequest';
+						break;
+						case 6:
+							$div_name = 'HR';
+							$template = 'services/email/ECHRVerificationRequest';
+						break;
+						case 7:
+							$div_name = 'HR';
+							$template = 'services/email/ECHRVerificationRequest';
+						break;
+						default:
+							$div_name = 'Unknown';
+						break;
+					}
+					$dataEmailNext =[
+						'division_name' => $div_name,
+						'pic_name' => decrypt($appr['complete_name']),
+						'req_number' => $email_data['request_number'],
+						'req_name' => decrypt($email_data['complete_name']),
+						'req_nik' => $email_data['nik'],
+						'position_name' => decrypt($email_data['position']),
+						'module' => 'Exit Clearance',
+						'resign_date' => indo_date($email_data['last_date']),
+						'notes' => $email_data['notes'],
+						'status' => 'Waiting for Approval',
+						'notes_history' => $notes_history
+					];
+					if($unit_code === null || $unit_code === ""){
+						$htmlinfoNext = $this->load->view('services/email/EC_DivisonHeadApprovalRequest', $dataEmailNext, TRUE);
+						$subjectNext = "[HRIS-EC] Exit Clearance Approval Request";
+					}else{
+						$htmlinfoNext = $this->load->view($template, $dataEmailNext, TRUE);
+						$subjectNext = "[HRIS-EC] Exit Clearance Verification Request";
+					}
+					$data_email_info_next = [
+						'app_name'          => 'HRIS',
+						'email_to'          => 'fathur.rosi@ibsmulti.com',//decrypt($appr['email']),
+						'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+						'email_subject'     => $subjectNext,
+						'email_body'        => $htmlinfoNext,
+					];
+					$res_info_next = $this->apiemail_service->posting_email($data_email_info_next);
+					$dataResInfo_next = json_decode($res_info_next, true);
+					// Validasi apakah format respons valid dan memiliki key 'status'
+					if (is_array($dataResInfo_next) && isset($dataResInfo_next['status'])) {
+						
+						// Kondisi 1: Pengiriman Berhasil (status === true)
+						if ($dataResInfo_next['status'] === true) {
+						} 
+						// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+						else {
+							$this->logs('Request Approval EC', $rl['id_form_request'], 'Failed to send Email to Approver');
+						}
+					}
+				}
+			}else{
+				if($last_approver){
+					$hrgahead = $this->form_model->getHRGADivHead();
+						foreach($hrgahead as $h){
+							$dataEmailNext =[
+								'div_head_name' => decrypt($h['complete_name']),
+								'pic_name' => decrypt($appr['complete_name']),
+								'req_number' => $email_data['request_number'],
+								'req_name' => decrypt($email_data['complete_name']),
+								'req_nik' => $email_data['nik'],
+								'position_name' => decrypt($email_data['position']),
+								'module' => 'Exit Clearance',
+								'resign_date' => indo_date($email_data['last_date']),
+								'notes' => $email_data['notes'],
+								'status' => 'Full Approved',
+								'notes_history' => $notes_history
+							];
+							$data_email_info_next = [
+								'app_name'          => 'HRIS',
+								'email_to'          => 'fathur.rosi@ibsmulti.com',//decrypt($h['email']),
+								'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+								'email_subject'     => '[HRIS-EC] Exit Clearance Information Full Approved',
+								'email_body'        => $this->load->view('services/email/ECInformationFullApprovedtoHRGADivhead', $dataEmailNext, TRUE),
+							];
+							$res_info_next = $this->apiemail_service->posting_email($data_email_info_next);
+							$dataResInfo_next = json_decode($res_info_next, true);
+							// Validasi apakah format respons valid dan memiliki key 'status'
+							if (is_array($dataResInfo_next) && isset($dataResInfo_next['status'])) {
+								
+								// Kondisi 1: Pengiriman Berhasil (status === true)
+								if ($dataResInfo_next['status'] === true) {
+								} 
+								// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+								else {
+									$this->logs('Request Approval EC', $rl['id_form_request'], 'Failed to send Email to Approver');
+								}
+							}
+					}
+				}
+			}
+		}
+		$data_email_info = [
+			'app_name'          => 'HRIS',
+			'email_to'          => $email_data['created_by'],
+			'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+			'email_subject'     => $subject,
+			'email_body'        => $htmlinfo,
+		];
+		$res_info = $this->apiemail_service->posting_email($data_email_info);
+		$dataResInfo = json_decode($res_info, true);
+		// Validasi apakah format respons valid dan memiliki key 'status'
+		if (is_array($dataResInfo) && isset($dataResInfo['status'])) {
+			
+			// Kondisi 1: Pengiriman Berhasil (status === true)
+			if ($dataResInfo['status'] === true) {
+			} 
+			// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+			else {
+				$this->logs('Request Approval EC', $rl['id_form_request'], 'Failed to send Email to verificator');
+			}
+		}
 		$approval = $this->form_model->approval_ec($form['id'], $status, $notes, $data_update ?? [],  $data_sec_update ?? [], $last_approver ?? null);
 		if($approval === false){
 			$response = [
@@ -7317,7 +7720,7 @@ class Form extends Admin_Controller
 		}
 		if($is_approver && $status === 'Approved'){
 			$role_approver = $this->m_global->getRow('*','exit_clearance_division_pic', [
-				'id_employee' => $app_ec[0]['id'],
+				'id_employee' => $this->emp_nik,
 				'id_ec_division' => 7,
 				'start_date <=' => date('Y-m-d'),
 				'end_date >=' => date('Y-m-d')
@@ -7329,9 +7732,10 @@ class Form extends Admin_Controller
 				$filename_ec = 'qr-code-kadiv.png';
 				$filename_eh = 'qr-code-kadiv-eh.png';
 			}
-			$this->getItemExitClearance($exit_clearance['id'], $filename_ec);
-			$this->getItemExitHandover($exit_clearance['id'], $filename_eh);
+			$this->getItemExitClearance($exit_clearance['id'], $filename_ec, $this->emp_nik);
+			$this->getItemExitHandover($exit_clearance['id'], $filename_eh, $this->emp_nik);
 		}
+		
 		$response = [
 			'status' => true,
 			'message' => 'Approval Success.',
@@ -7341,11 +7745,12 @@ class Form extends Admin_Controller
 			->set_status_header(200)
 			->set_output(json_encode($response));
 	}
-	public function getItemExitClearance($id_exit_clearance, $filename = 'qr-code-requestor.png')
+	public function getItemExitClearance($id_exit_clearance, $filename = 'qr-code-requestor.png', $nikApprover = null)
 	{
 		$getNikRequestor = $this->form_model->getNikRequestorNik($id_exit_clearance);
 		$employee = $this->getEmployeeInfoExitClearance($getNikRequestor['nik']);
 		$data['employee'] = $employee;
+		
 		// 1. Ambil form type khusus Exit Clearance (EC)
 		$form_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EC')->row_array();
 
@@ -7432,7 +7837,7 @@ class Form extends Admin_Controller
 				'questions' => [],
 			];
 		}
-
+		// dumper($approval_list);
 		// Grouping Questions Langsung ke Section Tanpa Parent-Child (Flat)
 		foreach ($question_map as $q) {
 			$sec_id = $q['id_form_section'];
@@ -7441,18 +7846,21 @@ class Form extends Admin_Controller
 					foreach ($approval_list[$sec_id] as $p) {
 						// Clone question untuk tiap PIC
 						$q_pic = $q;
-						$q_pic['tanggal_clearance'] = $p['tanggal_clearance'] ?? "";
+						$q_pic['tanggal_clearance'] = $p['tanggal_clearance'] != null ? indo_date($p['tanggal_clearance']) : '';
 						$q_pic['receiver_name'] = decrypt($p['name']) ?? "";
-						$q_pic['receiver_status'] = $p['status'] ?? ""; 
+						$q_pic['receiver_status'] = (int)$p['status'] === 1 ? "Approved" : ''; 
 						
 						$data['form'][$sec_id]['questions'][] = $q_pic;
 					}
 				} else {
 					// Untuk Section 2, 3, 4, 5 (Baris Biasa)
+					$q['tanggal_clearance'] = $q['tanggal_clearance'] != null ? indo_date($q['tanggal_clearance']) : '';
+					$q['receiver_status'] = (int)$q['receiver_status'] === 1 ? "Approved" : ''; 
 					$data['form'][$sec_id]['questions'][] = $q;
 				}
 			}
 		}
+		// dumper($data['form']);
 
 		// Urutkan Pertanyaan Berdasarkan Sequence
 		foreach ($data['form'] as &$sec) {
@@ -7496,7 +7904,7 @@ class Form extends Admin_Controller
 		//create qr code
 		$encrypted_id = encryptURL($id_exit_clearance);
 		$path = 'assets/documents/document_resignation/'. $data['employee']['nik'].'/exit_clearance/qrcode/'.$filename;
-		$generate_qr_code = $this->generate_qr_code_ec($path, $encrypted_id, $data['employee'], $filename);
+		$generate_qr_code = $this->generate_qr_code_ec($path, $encrypted_id, $data['employee'], $filename, $nikApprover);
 		// dumper($generate_qr_code);
 		foreach ($approval as $item) {
 			if ((string)$item['id_section'] === '0') {
@@ -7531,11 +7939,13 @@ class Form extends Admin_Controller
 		//generate pdf exit clearance
 		$ec_view = 'print_req_exit_clearance';
 		$ec_path = 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/';
+		// dumper($data);
 		$generate_ec_pdf = $this->generatePdfEc($ec_view, $ec_path, $data,'exit_clearance', 'exit_clearance.pdf');
 		return true;
 	}
 	public function getItemExitInterview($id_exit_clearance)
 	{
+		
 		$getNikRequestor = $this->form_model->getNikRequestorNik($id_exit_clearance);
 		$employee = $this->getEmployeeInfoExitClearance($getNikRequestor['nik']);
 		$data['employee'] = $employee;
@@ -7650,14 +8060,14 @@ class Form extends Admin_Controller
 		} else {
 			$data['employee']['sign_img'] = null;
 		}
-
+		// dumper($data);
 		//generate pdf exit clearance
 		$ec_view = 'print_req_exit_interview';
 		$ec_path = 'assets/documents/document_resignation/' . $data['employee']['nik'] . '/exit_clearance/';
 		$generate_ec_pdf = $this->generatePdfEc($ec_view, $ec_path, $data,'exit_interview', 'exit_interview.pdf');
 		return true;
 	}
-	public function getItemExitHandover($id_exit_clearance, $filename = 'qr-code-requestor-eh.png')
+	public function getItemExitHandover($id_exit_clearance, $filename = 'qr-code-requestor-eh.png', $nikApprover = null)
 	{
 		$getNikRequestor = $this->form_model->getNikRequestorNik($id_exit_clearance);
 		$employee = $this->getEmployeeInfoExitClearance($getNikRequestor['nik']);
@@ -7729,7 +8139,7 @@ class Form extends Admin_Controller
 		//create qr code
 		$encrypted_id = encryptURL($id_exit_clearance);
 		$path = 'assets/documents/document_resignation/'. $data['employee']['nik'].'/exit_clearance/qrcode/'.$filename;
-		$generate_qr_code = $this->generate_qr_code_ec($path, $encrypted_id, $data['employee'], $filename);
+		$generate_qr_code = $this->generate_qr_code_ec($path, $encrypted_id, $data['employee'], $filename, $nikApprover);
 		// dumper($generate_qr_code);
 		foreach ($approval as $item) {
 			if ((string)$item['id_section'] === '0') {
@@ -7789,7 +8199,7 @@ class Form extends Admin_Controller
 		];
 		return $data;
 	}
-	private function generate_qr_code_ec($output_path, $encrypted_id, $employee,$filename)
+	private function generate_qr_code_ec($output_path, $encrypted_id, $employee,$filename, $nikApprover = null)
 	{
 			$path = FCPATH . $output_path;
 			if(file_exists($path)){
@@ -7806,7 +8216,7 @@ class Form extends Admin_Controller
 			$config['white']        = array(70, 130, 180);
 			$this->ciqrcode->initialize($config);
 			$image_name 			= $filename;
-			$params['data'] 		= base_url() . 'form/Qrrl/infoEC/' . $encrypted_id;
+			$params['data'] 		= base_url() . 'form/Qrrl/infoEC/' . $encrypted_id . '/' . $nikApprover;
 			$params['size'] 		= 10;
 			$params['savename'] 	= FCPATH . $config['imagedir'] . $image_name;
 			$params['logo'] 		= FCPATH . $config['imagelogo'];
@@ -7835,7 +8245,7 @@ class Form extends Admin_Controller
 		$pdf->AddPage('P', 'A4');
 
 		// Set Font standar
-		$pdf->SetFont('helvetica', '', 9);
+		$pdf->SetFont('times', '', 11);
 
 		// Write HTML: Cetak seluruh view HTML sekaligus dari posisi X=10mm, Y=10mm
 		$pdf->writeHTMLCell(
@@ -7854,7 +8264,33 @@ class Form extends Admin_Controller
 		if(file_exists($path_out)){
 			unlink($path_out);
 		}
+		// make view output in browser
+		// $pdf->Output($filename, 'I');
 		$pdf->Output($path_out, 'F');
+	}
+	public function reference_letter($id)
+	{
+		$data = $this->getHeaderInfo($id);
+		// dumper($data);
+		$data['main'] = 'form/exit_clearance/reference_letter';
+		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
+		
+	}
+	public function view_reference_letter($employee_id, $filename)
+	{
+		// $file_path = FCPATH . 'assets/documents/document_resignation/' . $employee_id . '/resignation_letter/' . $filename;
+		$file_path = FCPATH . 'assets/documents/document_resignation/' . $employee_id . '/reference_letter/' . $filename;
+		if (!file_exists($file_path)) {
+			show_404();
+			return;
+		}
+
+		header('Content-Type: application/pdf');
+		header('Content-Disposition: inline; filename="' . basename($filename) . '"');
+		header('Content-Length: ' . filesize($file_path));
+
+		readfile($file_path);
+		exit;
 	}
 
 }

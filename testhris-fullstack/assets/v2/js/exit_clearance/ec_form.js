@@ -351,13 +351,15 @@ $(document).on('click', '.btn-save-section', function () {
     const button = $(this);
     const section = button.closest('.wrap-section');
     const sectionId = section.data('section-id');
-    const noteInput = section.find('textarea[name="note-' + sectionId + '"]');
-    const noteValue = noteInput.val();
+    const newNote = $('#new-note-' + sectionId);
+    const oldNote = String($('textarea[name="my-note-' + sectionId + '"]').val() || '').trim();
+    const note = newNote.length ? String(newNote.val() || '').trim() : oldNote;
+    
 
     const formData = new FormData();
 
     formData.append('id_form_exit', idFormExit);
-    formData.append('note', noteValue);
+    formData.append('note', note);
 
     // section ID
     formData.append('section_id', sectionId);
@@ -519,6 +521,16 @@ $(document).on('click', '.btn-edit-section', function () {
     const button = $(this);
     const section = button.closest('.wrap-section');
     const sectionId = section.data('section-id');
+    const state = button.data('state');
+    let classComponent = '';
+    let status = 0;
+    if(state === 'revised'){
+        status = 2;
+        classComponent = sectionId === 1 ? 'btn-save-pic-section' : 'btn-save-section';
+    }else{
+        status = 0;
+        classComponent = 'btn-save-section';
+    }
     button.prop('disabled', true);
     button.text('waiting...');
     $.ajax({
@@ -527,7 +539,8 @@ $(document).on('click', '.btn-edit-section', function () {
         data: {
             section_id: sectionId,
             id_form_exit: idFormExit,
-            status: 0
+            status: status,
+            state: state
         },
         success: function (response) {
             if (response.status) {
@@ -558,7 +571,7 @@ $(document).on('click', '.btn-edit-section', function () {
                 $('#submit-btn').show();
                 button
                     .removeClass('btn-edit-section')
-                    .addClass('btn-save-section')
+                    .addClass(classComponent)
                     .text('Save');
             }
         },
@@ -652,6 +665,56 @@ $(document).on('click', '#submit-all-ec', function () {
         }
     });
 });
+$(document).on('click', '#edit-all-ec', function () {
+    const id  = $(this).data('id');
+    const button = $(this);
+    button.text('Waiting...');
+    $.ajax({
+        url: base_url + 'form/updateExitClearanceStatus',
+        type: 'POST',
+        data: {
+            id_exit_clearance: id,
+            status: 0
+        },
+        success: function (response) {
+            if (response.status === true) {
+                Swal.fire({
+                    icon: 'success', 
+                    title: 'Success',
+                    text: response.message,
+                    timer: 5000,
+                    timerProgressBar: true
+                }).then(() => {
+                    //reload this page
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: response.message,
+                    timer: 5000,
+                    timerProgressBar: true
+                }).then(() => {
+                    //reload this page
+                    location.reload();
+                });
+            }
+        },
+        error: function (xhr) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: xhr.responseJSON?.message || 'Failed to update the status. Please try again later.',
+                timer: 5000,
+                timerProgressBar: true
+            }).then(() => {
+                //reload this page
+                location.reload();
+            });
+        }
+    });
+});
 $(document).on('click', '.btn-save-pic-section', function () {
     const nikForm = $(this).data('form-nik');
     const myNik = $(this).data('mynik');
@@ -661,18 +724,23 @@ $(document).on('click', '.btn-save-pic-section', function () {
     const button = $(this);
     const section = button.closest('.wrap-section');
     const sectionId = section.data('section-id');
-    const noteInput = section.find('textarea[name="note-' + sectionId + '"]');
-    const noteValue = noteInput.val();
     const statusPic = $(this).data('status');
     const idFormRequest = $(this).data('id-exit');
+    const newNote = $('#new-note-' + sectionId);
+    const oldNote = String($('textarea[name="my-note-' + sectionId + '"]').val() || '').trim();
+    const notes = newNote.length ? String(newNote.val() || '').trim() : oldNote;
 
     const formData = new FormData();
 
     formData.append('id_form_exit', idFormExit);
-    formData.append('note', noteValue);
+    formData.append('note', notes);
 
     // section ID
     formData.append('section_id', sectionId);
+    //console log formdata
+     formData.forEach(function (value, key) {
+        console.log(key + ': ' + value);
+    });
     let isValid = true;
     // ambil semua input dalam section
     section.find(':input[name]').each(function () {
@@ -718,9 +786,6 @@ $(document).on('click', '.btn-save-pic-section', function () {
             return;
         }
     }
-    formData.forEach(function (value, key) {
-        console.log(key + ': ' + value);
-    });
     $.ajax({
         url: base_url + 'form/checkPic',
         type: 'POST',
@@ -777,6 +842,7 @@ $(document).on('click', '.btn-save-pic-section', function () {
                                 .text('Submitted');
                             button
                                 .removeClass('btn-save-section')
+                                .removeClass('btn-save-pic-section')
                                 .addClass('btn-edit-section')
                                 .text('Edit');
                             

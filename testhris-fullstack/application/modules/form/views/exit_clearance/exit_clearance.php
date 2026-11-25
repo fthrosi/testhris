@@ -185,14 +185,14 @@
                                             <input type="hidden" id="name-notes" value="<?= $name; ?>">
                                             <div class="input-with-label" style="margin-top: 10px;">
                                                 <label style="margin: 0;" for="note-<?= $form['id']; ?>"><?= $is_requestor_note ? 'Note Requestor' : 'Note Approver - ' . $name ?></label>
-                                                <textarea class="<?= $class_note; ?>" style="width: 100%; height:70px; padding: 0.5rem; color: #000000;" maxlength="255" <?= (($note['is_my_note'] && (int)$section['status'] !== 1) || (!$saved && $open_save)) ? '' : 'disabled' ?> type="text" id="note-<?= $note['id']; ?>" name="note-<?= $note['id']; ?>"><?= html_escape($note['note']); ?></textarea>
+                                                <textarea class="<?= $class_note; ?>" style="width: 100%; height:70px; padding: 0.5rem; color: #000000;" maxlength="255" <?= (($note['is_my_note'] && (int)$section['status'] !== 1) || (!$saved && $open_save)) ? '' : 'disabled' ?> type="text" id="note-<?= $note['id']; ?>" name="<?= $note['is_my_note'] ? "my-note" : "note-other" ?>-<?= $section['id']; ?>"><?= html_escape($note['note']); ?></textarea>
                                             </div>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
                                     <?php if(!$notes || (int)$section['my_note_length'] === 0): ?>
                                         <div class="input-with-label" style="margin-top: 10px;">
                                             <label style="margin: 0;" id="label-note-<?= $section['id']; ?>" for="note-<?= $section['id']; ?>">Notes</label>
-                                            <textarea style="width: 100%; height:70px; padding: 0.8rem;" maxlength="255" value="" <?= ($saved && !$open_save) ? 'readonly' : '' ?> type="text" id="note-<?= $section['id']; ?>" name="note-<?= $section['id']; ?>"></textarea>
+                                            <textarea style="width: 100%; height:70px; padding: 0.8rem;" maxlength="255" value="" <?= ($saved && !$open_save) ? 'readonly' : '' ?> type="text" id="new-note-<?= $section['id']; ?>" name="new-note"></textarea>
                                         </div>
                                     <?php endif; ?>
                                     <?php if((int)$header['status'] === 0): ?>
@@ -209,8 +209,8 @@
                                         </div>
                                     <?php endif; ?>
                                     <?php 
-                                        $class_btn = (int)$section['id'] !== 1 ? 'btn-save-section' : 'btn-save-pic-section';
-                                        if((int)$header['status'] !== 0 && (int)$section['status'] !== 1): 
+                                        $class_btn = (int)$section['status'] !== 1 ? ((int)$section['id'] !== 1 ? 'btn-save-section' : 'btn-save-pic-section') : 'btn-edit-section';
+                                        if((int)$header['status'] !== 0): 
                                     ?>
                                         <div class="wraper-btn-save">
                                             <button
@@ -220,9 +220,10 @@
                                                 data-mynik="<?= $my_nik; ?>"
                                                 data-form-nik="<?= $form_request['employee_id']; ?>"
                                                 data-id-exit = <?= $header['id_form_request']; ?>
+                                                data-state = "revised"
                                                 data-status="<?= htmlspecialchars(json_encode($pic_handover_status), ENT_QUOTES, 'UTF-8'); ?>"
                                             >
-                                                Save
+                                                <?= (int)$section['status'] !== 1 ? 'Save' : 'Edit'; ?>
                                             </button>
                                         </div>
                                     <?php endif; ?>

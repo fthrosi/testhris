@@ -124,7 +124,6 @@ $(document).on('click', '.btn-edit-handover', function () {
     const status = $(this).data('status');
     const name = $(this).data('name');
     const email = $(this).data('email');
-    console.log('id:', id);
     $('#id_handover').val(id);
 
     setPicType('non-employee');
@@ -146,6 +145,7 @@ $(document).on('click', '.btn-edit-handover', function () {
     // Isi data PIC
     $('#non-employee-name').val(name);
     $('#non-employee-email').val(email);
+    $('#employee-status, #non-employee-status').find('option[value=""]').prop('hidden', true);
     $('#non-employee-status').val(status);
 
     // PIC tidak boleh diedit

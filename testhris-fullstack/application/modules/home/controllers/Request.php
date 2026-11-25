@@ -102,10 +102,10 @@ class Request extends Admin_Controller
 						break;
 
 					case 2:
-						$row['current_step'] = 5;
+						$row['current_step'] = 3;
 						break;
 					case 3:
-						$row['current_step'] = 6;
+						$row['current_step'] = 5;
 						break;
 					case 4:
 						$row['current_step'] = 7;

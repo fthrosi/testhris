@@ -179,7 +179,6 @@ class Inbox extends Admin_Controller
 		$data['header_ec_cek'] = $cek;
 		$data['header_ec_rejected'] = $revised;
 		$data['header_ec_approved'] = $approved;
-		
 		$this->templates->show('index', 'templates/eapp/eapp_main', $data);
 	}
 	public function do_approval_resignation_letter()
@@ -220,6 +219,179 @@ class Inbox extends Admin_Controller
 				->set_status_header(400)
 				->set_output(json_encode($response));
 		}
+		$list_email = $this->inbox_model->getListEmail('RESIGNATION_LETTER');
+		$email_data = $this->form_model->getDataRLEmail($resignation_letters['id']);
+		$approver_email = $this->m_global->find('v_hris_employee_updated', 'nik', $email_data['id_approver'])->row_array();
+		$notes_history = $this->inbox_model->getNotesRL($resignation_letters['id']);
+		$user_email = $this->m_global->find('v_hris_employee_updated', 'nik', $email_data['nik'])->row_array();
+		if(!empty($user_email['department_head']) && decrypt($user_email['department_head']) != '00000000'){
+			$dept_head = $this->m_global->find('v_hris_employee_updated', 'nik', decrypt($user_email['department_head']))->row_array();
+		}
+		$dataEmail =[
+			'depth_head_name' => decrypt($dept_head['complete_name']) ?? '',
+			'div_head_name' => decrypt($approver_email['complete_name']),
+			'req_number' => $email_data['request_number'],
+			'req_name' => decrypt($email_data['complete_name']),
+			'req_nik' => $email_data['nik'],
+			'position_name' => decrypt($email_data['position']),
+			'module' => 'Exit Clearance',
+			'resign_date' => indo_date($email_data['last_date']),
+			'notes' => $email_data['notes'],
+			'status' => $status === 'Revised' ? 'Revised' : 'Approved',
+			'notes_history' => $notes_history
+		];
+		$html  = $this->load->view('services/email/rl_ApprovedbyDivHead', $dataEmail, TRUE);
+		$htmlRevise = $this->load->view('services/email/RL_Revised', $dataEmail, TRUE);
+
+		if($status !== 'Revised'){
+			$data_email = [
+			'app_name'          => 'HRIS',
+			'email_to'          => $email_data['created_by'],
+			'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+			'email_subject'     => "[HRIS-EC] Resignation Letter Request Approved",
+			'email_body'        => $html,
+			];
+			$res = $this->apiemail_service->posting_email($data_email);
+			if(!empty($dept_head['email'])){
+				$list_email[] = [
+					'division' => 'Department Head',
+					'email' => 'fathur.rosi@ibsmulti.com'//decrypt($dept_head['email']) ?? ''
+				];
+				foreach($list_email as $email){
+					switch($email['division']){
+						case 'Department Head':
+							$htmlinfo = $this->load->view('services/email/rl_InformationApprovedtoDepthead', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'AP':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoAP', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'GA':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoGA', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'HR':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoHR', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'IT':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoIT', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'SAP':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoSAP', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'Treasury':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoTreasury', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+					}
+					$data_email_info = [
+						'app_name'          => 'HRIS',
+						'email_to'          => $email_to,
+						'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+						'email_subject'     => "[HRIS-EC] Resignation Letter Information Approved",
+						'email_body'        => $htmlinfo,
+					];
+					$res_info = $this->apiemail_service->posting_email($data_email_info);
+					$dataResInfo = json_decode($res_info, true);
+					// Validasi apakah format respons valid dan memiliki key 'status'
+					if (is_array($dataResInfo) && isset($dataResInfo['status'])) {
+						
+						// Kondisi 1: Pengiriman Berhasil (status === true)
+						if ($dataResInfo['status'] === true) {
+						} 
+						// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+						else {
+							$this->logs('Request Approval RL', $resignation_letters['id'], 'Failed to send Email to Department Head');
+						}
+					}
+				}
+				
+			}else{
+				foreach($list_email as $email){
+					switch($email['division']){
+						case 'AP':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoAP', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'GA':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoGA', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'HR':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoHR', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'IT':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoIT', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'SAP':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoSAP', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+						case 'TREASURY':
+							$htmlinfo = $this->load->view('services/email/RL_InformationApprovedtoTreasury', $dataEmail, TRUE);
+							$email_to = $email['email'];
+						break;
+					}
+					$data_email_info = [
+						'app_name'          => 'HRIS',
+						'email_to'          => $email_to,
+						'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+						'email_subject'     => "[HRIS-EC] Resignation Letter Information Approved",
+						'email_body'        => $htmlinfo,
+					];
+					$res_info = $this->apiemail_service->posting_email($data_email_info);
+					$dataResInfo = json_decode($res_info, true);
+					// Validasi apakah format respons valid dan memiliki key 'status'
+					if (is_array($dataResInfo) && isset($dataResInfo['status'])) {
+						
+						// Kondisi 1: Pengiriman Berhasil (status === true)
+						if ($dataResInfo['status'] === true) {
+						} 
+						// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+						else {
+							$this->logs('Request Approval RL', $resignation_letters['id'], 'Failed to send Email to Department Head');
+						}
+					}
+				}
+			}
+			$dataRes = json_decode($res, true);
+			// Validasi apakah format respons valid dan memiliki key 'status'
+			if (is_array($dataRes) && isset($dataRes['status'])) {
+				
+				// Kondisi 1: Pengiriman Berhasil (status === true)
+				if ($dataRes['status'] === true) {
+				} 
+				// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+				else {
+					$this->logs('Request Approval RL', $resignation_letters['id'], 'Failed to send Email to Division Head');
+				}
+			}
+		}else{
+			$data_email = [
+				'app_name'          => 'HRIS',
+				'email_to'          => $email_data['created_by'],
+				'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+				'email_subject'     => "[HRIS-EC] Resignation Letter Request Revised",
+				'email_body'        => $htmlRevise,
+			];
+			$res = $this->apiemail_service->posting_email($data_email);
+			$dataRes = json_decode($res, true);
+			if (is_array($dataRes) && isset($dataRes['status'])) {
+				
+				if ($dataRes['status'] === true) {
+				} 
+				else {
+					$this->logs('Request Approval RL', $resignation_letters['id'], 'Failed to send Email to Requester');
+				}
+			}
+		}
+		
 		$response = [
 			'status' => true,
 			'message' => 'Approval Success.',
@@ -6121,6 +6293,10 @@ class Inbox extends Admin_Controller
 			}
 			
 		}
+		if($status !== 'revised'){
+			$app_req = $this->m_global->getRow('*', 'exit_clearance_approval_request',['id_form_request' => $id_request, 'approval_type' => 'EXIT_CLEARANCE']);
+			$next_step = $this->inbox_model->getNextEmail($app_req['id'], $this->nik);
+		}
 		if($type === "verificator"){
 			$data_step = [];
 			$data_form = [];
@@ -6136,6 +6312,7 @@ class Inbox extends Admin_Controller
 					->set_status_header(200)
 					->set_output(json_encode($response));
 			}
+			
 			$app_step = $this->m_global->getRow('*', 'exit_clearance_approval_steps',['id_approval_req' => $app_req['id'], 'id_approver' => $this->nik]);
 			$kolom = $app_step['acted_at'] == null ? 'acted_at' : 'updated_at';
 			if($status === 'revised'){
@@ -6151,7 +6328,7 @@ class Inbox extends Admin_Controller
 						->set_status_header(400)
 						->set_output(json_encode($response));
 				}
-				if((int)$section_saved['id'] === 1){
+				if((int)$section_saved['id_section'] === 1){
 					$form_type = $this->m_global->find('exit_clearance_form_types', 'code', 'EH')->row_array();
 					// dumper($form_type);
 					$form_eh = $this->m_global->getRow('*','form_exit_clearance', ['id_form_type' => $form_type['id'], 'id_exit_clearance' => $form['id_exit_clearance']]);
@@ -6199,6 +6376,127 @@ class Inbox extends Admin_Controller
 					->set_output(json_encode($response));
 			}
 		}
+		$exit_clearance = $this->m_global->find('exit_clearance', 'id_form_request', $id_request)->row_array();
+			$rl = $this->m_global->find('exit_clearance_resignation_letters', 'id_form_request', $exit_clearance['id_form_request'])->row_array();
+			$email_data = $this->form_model->getDataRLEmail($rl['id']);
+			$notes_history = $this->inbox_model->getNotesRL($exit_clearance['id'], 'id_exit_clearance');
+			$verificator = $this->m_global->find('v_hris_employee_updated', 'nik', $this->nik)->row_array();		
+			$dataEmail =[
+				'verificator_name' => decrypt($verificator['complete_name']),
+				'req_number' => $email_data['request_number'],
+				'req_name' => decrypt($email_data['complete_name']),
+				'req_nik' => $email_data['nik'],
+				'position_name' => decrypt($email_data['position']),
+				'module' => 'Exit Clearance',
+				'resign_date' => indo_date($email_data['last_date']),
+				'notes' => $email_data['notes'],
+				'status' => $status === 'revised' ? 'Revised' : 'Verified',
+				'notes_history' => $notes_history
+			];
+			if($status === 'revised'){
+				$htmlinfo = $this->load->view('services/email/ECRevised', $dataEmail, TRUE);
+				$subject = "[HRIS-EC] Exit Clearance Request Revised";
+			}else{
+				$next_step = $this->inbox_model->getNextEmail($app_req['id'], $this->nik);
+				$htmlinfo = $this->load->view('services/email/ECVerified', $dataEmail, TRUE);
+				$subject = "[HRIS-EC] Exit Clearance Request Verified";
+				if(!empty($next_step)){
+					$id_app = array_column($next_step, 'id_approver');
+					$approver = $this->form_model->getApprover($id_app);
+					foreach($next_step as $next){
+						$next_map[$next['id_approver']] = $next;
+					}
+					foreach($approver as $appr){
+						$id_emp = $appr['nik'];
+						$unit_code = $next_map[$id_emp]['unit_code'];
+						switch($unit_code){
+							case 2:
+								$div_name = 'Finance';
+							break;
+							case 3:
+								$div_name = 'IT Infrastructure';
+							break;
+							case 4:
+								$div_name = 'SAP';
+							break;
+							case 5:
+								$div_name = 'GA';
+							break;
+							case 6:
+								$div_name = 'HR';
+							break;
+							case 7:
+								$div_name = 'HR';
+							break;
+							default:
+								$div_name = 'Unknown';
+							break;
+						}
+						$dataEmailNext =[
+							'division_name' => $div_name,
+							'pic_name' => decrypt($appr['complete_name']),
+							'req_number' => $email_data['request_number'],
+							'req_name' => decrypt($email_data['complete_name']),
+							'req_nik' => $email_data['nik'],
+							'position_name' => decrypt($email_data['position']),
+							'module' => 'Exit Clearance',
+							'resign_date' => indo_date($email_data['last_date']),
+							'notes' => $email_data['notes'],
+							'status' => 'Waiting for Approval',
+							'notes_history' => $notes_history
+						];
+						if($unit_code === null || $unit_code === ""){
+							$htmlinfoNext = $this->load->view('services/email/EC_DivisonHeadApprovalRequest', $dataEmailNext, TRUE);
+							$subjectNext = "[HRIS-EC] Exit Clearance Approval Request";
+						}else{
+							$htmlinfoNext = $this->load->view('services/email/ECSAPVerificationRequest', $dataEmailNext, TRUE);
+							$subjectNext = "[HRIS-EC] Exit Clearance Verification Request";
+						}
+						$data_email_info_next = [
+							'app_name'          => 'HRIS',
+							'email_to'          => 'fathur.rosi@ibsmulti.com',//decrypt($appr['email']),
+							'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+							'email_subject'     => $subjectNext,
+							'email_body'        => $htmlinfoNext,
+						];
+						$res_info_next = $this->apiemail_service->posting_email($data_email_info_next);
+						$dataResInfo_next = json_decode($res_info_next, true);
+						// Validasi apakah format respons valid dan memiliki key 'status'
+						if (is_array($dataResInfo_next) && isset($dataResInfo_next['status'])) {
+							
+							// Kondisi 1: Pengiriman Berhasil (status === true)
+							if ($dataResInfo_next['status'] === true) {
+							} 
+							// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+							else {
+								$this->logs('Request Approval EC', $rl['id_form_request'], 'Failed to send Email to Approver');
+							}
+						}
+					}
+					
+				}
+			}
+			$data_email_info = [
+				'app_name'          => 'HRIS',
+				'email_to'          => $email_data['created_by'],
+				'created_by'        => $data['header']->email ?: ($this->email ?: ""),
+				'email_subject'     => $subject,
+				'email_body'        => $htmlinfo,
+			];
+			$res_info = $this->apiemail_service->posting_email($data_email_info);
+			$dataResInfo = json_decode($res_info, true);
+			// Validasi apakah format respons valid dan memiliki key 'status'
+			if (is_array($dataResInfo) && isset($dataResInfo['status'])) {
+				
+				// Kondisi 1: Pengiriman Berhasil (status === true)
+				if ($dataResInfo['status'] === true) {
+				} 
+				// Kondisi 2: Pengiriman Gagal / Unauthorized / Error 401 (status === false)
+				else {
+					$this->logs('Request Approval EC', $rl['id_form_request'], 'Failed to send Email to verificator');
+				}
+			}
+		
 		$response = [
 			'status' => true,
 			'message' => 'Approval Success.',
@@ -6209,4 +6507,6 @@ class Inbox extends Admin_Controller
 			->set_output(json_encode($response));
 		
 	}
+
+	
 }

@@ -92,6 +92,9 @@
                                 <button type="button" id="submit-all-ec" data-id="<?= $header['id'] ?>" class="btn btn-success">Submit</button>
                         <?php endif; ?>
                         <button type="button" id="<?= $can_approve ? 'approve_ec_back' : 'back_btn_user' ?>" class="btn btn-danger">Back</button> 
+                        <?php if((int)$header['status'] === 1 && $can_edit_all_ec): ?>
+                                <button type="button" id="edit-all-ec" data-id="<?= $header['id'] ?>" class="btn btn-primary">Edit</button>
+                        <?php endif; ?>
                         <?php if($can_approve && (int)$header['status'] === 1): ?>
                                 <button type="button" id="approval_ec_btn" data-status="Revised" data-id="<?= $header['id_form_request'] ?>" class="btn btn-warning approval_ec_btn">Revise</button>
                                 <button type="button" id="approval_ec_btn" data-status="Approved" data-id="<?= $header['id_form_request'] ?>" class="btn btn-success approval_ec_btn">Approve</button>

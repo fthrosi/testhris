@@ -138,7 +138,7 @@
                                             break;
                                         case 5:
                                             $url1 = base_url('inbox/detail_req_resignation_letter/'.encode_url($value["id"]));
-                                            $url2 = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                                            $url2 = base_url('form/reference_letter/'.encode_url($value["id"]));
                                             break;
                                         default:
                                             $url1 = base_url('inbox/detail_req_resignation_letter/'.encode_url($value["id"]));
@@ -184,7 +184,7 @@
                             $url = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
                             break;
                         case 5:
-                            $url = base_url('form/home_exit_clearance/'.encode_url($value["id"]));
+                            $url = base_url('form/reference_letter/'.encode_url($value["id"]));
                             break;
                         default:
                             $url = base_url('form/detail/'.$value["form_type"].'/'.encode_url($value["id"]));

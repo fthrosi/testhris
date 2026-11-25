@@ -61,7 +61,7 @@
 
      <div class="notes-field">
             <div class="notes-field-label">
-                    Additional Notes
+                    Additional Notes Requestor
             </div>
 
             <textarea
@@ -69,7 +69,7 @@
                     class="form-control notes-field-input"
                     placeholder="Enter your notes here(max 255 characters)"
                     maxlength="255"
-                    <?= $is_submitted || $just_view || !$is_user ? 'readonly' : '' ?>
+                    <?= $is_submitted || $just_view || !$is_user ? 'disabled' : '' ?>
             ><?= htmlspecialchars($resignation_letter['notes'], ENT_QUOTES, 'UTF-8') ?></textarea>
     </div>
     <div id="button-approve-rl" class="button-approve-rl">

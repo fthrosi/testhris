@@ -192,7 +192,8 @@ class Inbox_model extends CI_Model {
 			$listForm = array_merge($listForm, $ec);
 			return $listForm;
 		} else {
-			return $data;
+			$ec = $this->get_my_ec_approver();
+			return $ec;
 		}
 	}
 	
@@ -2726,5 +2727,47 @@ class Inbox_model extends CI_Model {
 		}
 		$this->db->trans_commit();
 		return true;
+	}
+	public function getNotesRL($id_rl, $kolom = 'id_resignation_letter')
+	{
+		$this->db->select('created_by, note, created_at');
+		$this->db->from('exit_clearance_notes');
+		$this->db->where($kolom, $id_rl);
+		return $this->db->get()->result_array();
+	}
+	public function getListEmail($type = 'RESIGNATION_LETTER')
+	{
+		$this->db->select('division,email')
+		->from('exit_clearance_list_email')
+		->where('type', $type);
+		return $this->db->get()->result_array();
+	}
+
+	public function getNextEmail($id_approval_req, $id_approver)
+	{
+		$this->db->select('aps_next.*')
+		->from('exit_clearance_approval_steps aps_next')
+		->join('exit_clearance_approval_steps aps_current', 'aps_next.id_approval_req = aps_current.id_approval_req', 'inner')
+		->where('aps_current.id_approval_req', $id_approval_req)
+		->where('aps_current.id_approver', $id_approver)
+		->where("
+			NOT EXISTS (
+				SELECT 1
+				FROM exit_clearance_approval_steps aps_check
+				WHERE aps_check.id_approval_req = aps_current.id_approval_req
+				AND aps_check.sequence = aps_current.sequence
+				AND aps_check.status != 1
+				AND aps_check.id_approver != aps_current.id_approver
+			)
+		", null, false)
+		->where("
+			aps_next.sequence = (
+				SELECT MIN(aps_min.sequence)
+				FROM exit_clearance_approval_steps aps_min
+				WHERE aps_min.id_approval_req = aps_current.id_approval_req
+				AND aps_min.sequence > aps_current.sequence
+			)
+		", null, false);
+		return $this->db->get()->result_array();
 	}
 }

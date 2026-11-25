@@ -129,7 +129,7 @@
 						</tr>
 						<tr>
 							<td class="aligncenter content-block">
-								Copyright © 2024 PT. Infrastruktur Bisnis Sejahtera. All rights reserved.
+								Copyright © <?= date('Y') ?> PT. Infrastruktur Bisnis Sejahtera. All rights reserved.
 							</td>
 						</tr>
 					</table>

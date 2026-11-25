@@ -41,10 +41,14 @@ class Qrrl extends Admin_Controller
 		
 		return $this->load->view('form/exit_clearance/view_qrcode', $data);
     }
-	public function infoEC($id_exit)
+	public function infoEC($id_exit, $nikApprover = null)
 	{
 		$id = decryptURL($id_exit);
-		$ec_info = $this->form_model->getECInfo($id);
+		if(empty($nikApprover) || $nikApprover == null){
+			$ec_info = $this->form_model->getECInfo($id);
+		}else{
+			$ec_info = $this->form_model->getAppoverInfo($nikApprover, $id);
+		}
 		if (!$ec_info) {
 			show_404();
 		}
@@ -52,8 +56,11 @@ class Qrrl extends Admin_Controller
 		$data['nama'] = decrypt($ec_info['nama']);
 		$data['nik'] = $ec_info['nik'];
 		$data['tanggal_submit'] = date('d F Y', strtotime($ec_info['tanggal_submit']));
-		
-		return $this->load->view('form/exit_clearance/viewQrEC', $data);
+		if(empty($nikApprover) || $nikApprover == null){
+			return $this->load->view('form/exit_clearance/viewQrEc', $data);
+		}else{
+			return $this->load->view('form/exit_clearance/viewQrEcApprover', $data);
+		}
 	}
 	/////////// END ///////////
 }

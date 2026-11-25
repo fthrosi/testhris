@@ -153,7 +153,7 @@
                             ?>
                             <div class="input-with-label" style="margin-top: 10px;">
                                 <label style="margin: 0;" for="note-<?= $form['id']; ?>"><?= $is_requestor_note ? 'Note Requestor' : 'Note Approve - ' . $name ?></label>
-                                <textarea class="<?= $class_note; ?>" style="width: 100%; height:70px; padding: 0.5rem;" maxlength="255" readonly type="text" id="note-<?= $note['id']; ?>" name="note-<?= $note['id']; ?>"><?= html_escape($note['note']); ?></textarea>
+                                <textarea class="<?= $class_note; ?>" style="width: 100%; height:70px; padding: 0.5rem;" maxlength="255" type="text" id="note-<?= $note['id']; ?>" name="<?= $note['is_my_note'] ? 'my-note' : 'note-other' ?>"><?= html_escape($note['note']); ?></textarea>
                             </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
